@@ -1,5 +1,8 @@
 #include <iostream>
 using namespace std;
+
+struct dsCHT;
+
 // dsCHT : danh sach cau hoi thi
 struct MonHoc{
     string MAMH;
@@ -16,14 +19,18 @@ struct NodeMH{
     NodeMH(MonHoc monhoc){
         left = nullptr;
         right = nullptr;
-        monhoc = monhoc;
+        this->monhoc = monhoc;
     }
 };
 
 struct CauHoi{
     int ID; // ID tu dong tang , khong trung lap
     string NOIDUNG;
-    string DAPAN[4];
+    string A;
+    string B;
+    string C;
+    string D;
+    char DAPAN_DUNG; // 'A' | 'B' | 'C' | 'D'
 };
 
 struct dsCHT{
@@ -31,7 +38,7 @@ struct dsCHT{
     CauHoi cauhoi;
     dsCHT(CauHoi cauhoi){
         next = nullptr;
-        cauhoi = cauhoi;
+        this->cauhoi = cauhoi;
     }
     
 };
@@ -46,7 +53,7 @@ struct dsDiemThi{
     DiemThi diemthi;
     dsDiemThi(DiemThi diemthi){
         next = nullptr;
-        diemthi = diemthi;
+        this->diemthi = diemthi;
     }
 };
 
@@ -64,7 +71,7 @@ struct dsSinhVien{
     SinhVien sinhvien;
     dsSinhVien(SinhVien sinhvien){
         next = nullptr;
-        sinhvien = sinhvien;
+        this->sinhvien = sinhvien;
     }
 };
 
@@ -78,7 +85,13 @@ struct Lop{
 
 struct dsLop{
     int n;
-    Lop* lop[MAXLOP];
+    Lop** lop[MAXLOP];
+    dsLop(){
+        n = 0;
+        for(int i = 0; i < MAXLOP; i++){
+            lop[i] = nullptr;
+        }
+    }
 };
 
 
