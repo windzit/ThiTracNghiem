@@ -85,7 +85,7 @@ struct Lop{
 
 struct dsLop{
     int n;
-    Lop** lop[MAXLOP];
+    dsLop** lop[MAXLOP];
     dsLop(){
         n = 0;
         for(int i = 0; i < MAXLOP; i++){
