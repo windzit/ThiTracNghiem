@@ -3,7 +3,7 @@
 #include "CommonTypes.h"
 
 struct MonHoc {
-	std::string MAMH;
+	char MAMH[15];
 	std::string TENMH;
 	dsCHT* dsCauHoi = nullptr;
 };
