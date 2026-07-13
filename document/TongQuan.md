@@ -1,4 +1,4 @@
-# TÀI LIỆU PHÂN TÍCH & THIẾT KẾ HỆ THỐNG THI TRẮC NGHIỆM (C++ CONSOLE)
+h# TÀI LIỆU PHÂN TÍCH & THIẾT KẾ HỆ THỐNG THI TRẮC NGHIỆM (C++ CONSOLE)
 ### Đồ án môn học — chuẩn hoá theo quy trình Business Analyst / Solution Architect thực tế
 
 > **Ghi chú về cấu trúc tài liệu:** Yêu cầu gốc gồm 18 mục lớn, trong đó riêng mục 14 phải đặc tả đầy đủ 16 tiểu mục cho **từng** chức năng a→i (9 chức năng), cộng thêm mục 15 (chức năng đề xuất), 16 (độ khó), 17 (phân công nhóm), 18 (SRS hoàn chỉnh). Nếu dồn tất cả vào một file sẽ vượt quá khả năng xử lý một lượt và làm loãng chất lượng. Do đó tài liệu được chia làm **3 phần**, đánh số liên tục:

@@ -1,5 +1,5 @@
 #pragma once
 
-void PrintClassListReport();
+void PrintClassListReport(dsLop* root);
 void PrintExamDetailReport();
 void PrintScoreboardReport();

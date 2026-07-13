@@ -83,20 +83,13 @@ struct Lop{
     dsSinhVien* dssinhvien = NULL;
 };
 
-struct dsLop{
-    int n;
-    dsLop** lop[MAXLOP];
+struct dsLop{ 
+    int n; // số lớp
+    Lop* dslop[MAXLOP];
     dsLop(){
         n = 0;
         for(int i = 0; i < MAXLOP; i++){
-            lop[i] = nullptr;
+            dslop[i] = nullptr;
         }
     }
 };
-
-
-int main(){
-    dsLop* dslop = new dsLop();
-    NodeMH* root = nullptr;
-    
-}
