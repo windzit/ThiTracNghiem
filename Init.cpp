@@ -1,16 +1,17 @@
 #include <iostream>
 using namespace std;
+const int MAXLOP =10000;
 
 struct dsCHT;
 
 // dsCHT : danh sach cau hoi thi
 struct MonHoc{
-    string MAMH;
+    char MAMH[15];
     string TENMH;
     dsCHT* dsCauHoi = NULL;
 };
 
-// BST cho mon hoc ( kem cac ham phu tro insert , search , delete )
+
 
 struct NodeMH{
     MonHoc monhoc;
@@ -24,7 +25,7 @@ struct NodeMH{
 };
 
 struct CauHoi{
-    int ID; // ID tu dong tang , khong trung lap
+    int ID; 
     string NOIDUNG;
     string A;
     string B;
@@ -76,7 +77,7 @@ struct dsSinhVien{
 };
 
 
-const int MAXLOP =10000;
+
 struct Lop{
     string MALOP;
     string TENLOP;
@@ -85,7 +86,7 @@ struct Lop{
 
 struct dsLop{
     int n;
-    dsLop** lop[MAXLOP];
+    dsLop* lop[MAXLOP];
     dsLop(){
         n = 0;
         for(int i = 0; i < MAXLOP; i++){
