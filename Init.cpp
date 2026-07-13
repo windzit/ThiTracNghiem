@@ -8,6 +8,7 @@ struct dsCHT;
 struct MonHoc{
     char MAMH[15];
     string TENMH;
+    bool used = false;
     dsCHT* dsCauHoi = NULL;
 };
 
@@ -32,6 +33,7 @@ struct CauHoi{
     string C;
     string D;
     char DAPAN_DUNG; // 'A' | 'B' | 'C' | 'D'
+    bool used = false;
 };
 
 struct dsCHT{
@@ -86,11 +88,11 @@ struct Lop{
 
 struct dsLop{
     int n;
-    dsLop* lop[MAXLOP];
+    Lop** dslop[MAXLOP];
     dsLop(){
         n = 0;
         for(int i = 0; i < MAXLOP; i++){
-            lop[i] = nullptr;
+            dslop[i] = nullptr;
         }
     }
 };

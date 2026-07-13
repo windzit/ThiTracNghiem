@@ -10,6 +10,7 @@ struct CauHoi {
 	std::string C;
 	std::string D;
 	char DAPAN_DUNG;
+	bool used = false; 
 };
 
 struct dsCHT {
