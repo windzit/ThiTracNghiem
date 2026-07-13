@@ -1,15 +1,7 @@
 #include <iostream>
 using namespace std;
 
-struct dsCHT {
-	dsCHT* next;
-	CauHoi cauhoi;
-
-	dsCHT(CauHoi cauhoi) {
-		next = nullptr;
-		this->cauhoi = cauhoi;
-	}
-};
+struct dsCHT;
 
 // dsCHT : danh sach cau hoi thi
 struct MonHoc{
