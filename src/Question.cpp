@@ -80,6 +80,14 @@ bool DeleteTail(dsCHT* &temp,dsCHT* &pre){
     return true;
 };
 
+// FindSubject(NodeMH* root, const char MAMH[15])  = True ( dieu kien )
+
+// Lua mon hoc muon them = > ktra => InsertQuestion(root->monhoc->dsCHT, cauhoi)
+
+
+// front_end xoa theo kieu tick ô : tick -> trả về ID -> call hàm ở backend để xóa theo ID cap nhat Front_end
+
+// kiem tra mon hoc ton tai khong truoc khi Insert  && ID tu dong tang : 2 TH insert : dau va cuoi
 
 bool InsertQuestion(dsCHT* &root, CauHoi cauhoi){
     if ( root == nullptr){
