@@ -21,11 +21,11 @@ struct NodeMH {
 	}
 };
 
-void InitSubjectModule(NodeMH* &root){
+inline void InitSubjectModule(NodeMH* &root){
     root = nullptr;
 };
 bool InsertSubject(NodeMH* &root, const MonHoc& monhoc);
 bool DeleteSubject(NodeMH* &root, const char MAMH[15]);
 bool UpdateSubject(NodeMH* &root, const char MAMH[15], const MonHoc& newMonHoc);
-bool FindSubject(NodeMH* root, const char MAMH[15], MonHoc& monhoc);
+bool FindMonHoc(NodeMH* root, const char MAMH[15]);
 

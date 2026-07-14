@@ -132,20 +132,11 @@ bool DeleteSubject(NodeMH* &root, const char MAMH[15]){
 
     // transplant 
     else{
-        NodeMH*parent = root;
-        NodeMH*succ = root->right;
-        while (succ->left!=nullptr){
-            parent=  succ;
-            succ = succ->left;
-        }
-        if(parent!=root){
-            parent->left = succ->right;
-            succ->right = root->right;
-        }
-        succ->left = root->left;
-        NodeMH*temp = root;
-        root = succ;
-        XoaNode(temp);
+        NodeMH*succ = findMinNode(root->right);
+        MonHoc tempMonHoc = root->monhoc;
+        root->monhoc = succ->monhoc;
+        succ->monhoc = tempMonHoc;
+        return DeleteSubject(root->right, MAMH);
         return true;
     }
 
@@ -153,17 +144,17 @@ bool DeleteSubject(NodeMH* &root, const char MAMH[15]){
 };
 
 // Chi cho update TenMH ( ko cho update MaMH) => Thong bao UI
-bool UpdateSubject(NodeMH* &root, const char MAMH[15], string newTenMH){
+bool UpdateSubject(NodeMH* &root, const char MAMH[15], const MonHoc& newMonHoc){
     if (root == nullptr)return false;
     NodeMH*x = FindNodeMH(root , MAMH);
     if( x == nullptr){
         cout <<" Khong ton tai mon Hoc ( UpdateSubject )";
         return false;
     };
-    x->monhoc.TENMH = newTenMH;
+    x->monhoc.TENMH = newMonHoc.TENMH;
     return true;
 };
 
-bool FindSubject(NodeMH* root, const char MAMH[15], MonHoc& monhoc){
-    return FindNodeMH(root,MAMH);
+bool FindMonHoc(NodeMH* root, const char MAMH[15]){
+    return FindNodeMH(root, MAMH) != nullptr;
 };
