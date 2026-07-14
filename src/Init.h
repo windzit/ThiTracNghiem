@@ -88,7 +88,7 @@ struct Lop{
 
 struct dsLop{
     int n;
-    Lop** dslop[MAXLOP];
+    Lop* dslop[MAXLOP];
     dsLop(){
         n = 0;
         for(int i = 0; i < MAXLOP; i++){
@@ -96,10 +96,3 @@ struct dsLop{
         }
     }
 };
-
-
-int main(){
-    dsLop* dslop = new dsLop();
-    NodeMH* root = nullptr;
-    
-}
