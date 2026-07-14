@@ -6,6 +6,7 @@ struct MonHoc {
 	char MAMH[15];
 	std::string TENMH;
 	dsCHT* dsCauHoi = nullptr;
+	bool used = false;
 };
 
 struct NodeMH {
@@ -20,11 +21,11 @@ struct NodeMH {
 	}
 };
 
-void InitSubjectModule(NodeMH* &root){
+inline void InitSubjectModule(NodeMH* &root){
     root = nullptr;
 };
-bool InsertSubject(NodeMH* &root, MonHoc monhoc);
-bool DeleteSubject(NodeMH* &root, const std::string& MAMH);
-bool UpdateSubject(NodeMH* &root, const std::string& MAMH, const MonHoc& newMonHoc);
-bool FindSubject(NodeMH* root, const std::string& MAMH, MonHoc& monhoc);
+bool InsertSubject(NodeMH* &root, const MonHoc& monhoc);
+bool DeleteSubject(NodeMH* &root, const char MAMH[15]);
+bool UpdateSubject(NodeMH* &root, const char MAMH[15], const MonHoc& newMonHoc);
+bool FindMonHoc(NodeMH* root, const char MAMH[15]);
 

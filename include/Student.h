@@ -40,7 +40,7 @@ void InitStudentModule(dsSinhVien* &root) {
     root = nullptr;
 };
 
-SinhVien* FindStudent_with_MASV(dsSinhVien* root,const string &MASV);
+SinhVien* FindStudent_with_MASV(dsSinhVien* root,const std::string &MASV);
 bool InsertStudent(dsSinhVien* &root, const SinhVien sinhvien);
 bool DeleteStudent(dsSinhVien* &root, const std::string& MASV);
 bool UpdateStudent(dsSinhVien* root, const std::string& MASV, const SinhVien& newSinhVien);
