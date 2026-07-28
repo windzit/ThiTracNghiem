@@ -1,0 +1,31 @@
+# Compiled binaries
+*.exe
+*.obj
+*.o
+
+# Build outputs
+build/
+out/
+.vs/
+
+# IDE
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.idea/
+
+# Logs
+*.log
+audit_log.txt
+audit_err.txt
+startup_log.txt
+startup_err.txt
+
+# Backups
+storage_backup_*/
+
+# Frontend build
+frontend/dist/
+frontend/node_modules/
