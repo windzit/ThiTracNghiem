@@ -2,10 +2,10 @@
 #include <iomanip>
 #include <fstream>
 #include <sstream>
-#include <vector>
 #include <cstring>
 #include "../include/Report.h"
 #include "../include/Subject.h"
+#include "../include/DArray.h"
 
 using namespace std;
 
@@ -27,15 +27,15 @@ void PrintClassListReport(dsLop* root) {
     }
 }
 
-static void collectMAMHRecursive(NodeMH* node, vector<string>& result) {
+static void collectMAMHRecursive(NodeMH* node, DArray<string>& result) {
     if (!node) return;
     collectMAMHRecursive(node->left, result);
     result.push_back(node->data.MAMH);
     collectMAMHRecursive(node->right, result);
 }
 
-static vector<string> getAllMAMHFromRAM(Subject& dsmh) {
-    vector<string> result;
+static DArray<string> getAllMAMHFromRAM(Subject& dsmh) {
+    DArray<string> result;
     collectMAMHRecursive(dsmh.getRoot(), result);
     return result;
 }
@@ -119,7 +119,7 @@ void PrintScoreboardReport(Class& dsl, Subject& dsmh) {
     }
 
     // 2. Get all subjects from RAM
-    vector<string> allMAMH = getAllMAMHFromRAM(dsmh);
+    DArray<string> allMAMH = getAllMAMHFromRAM(dsmh);
     if (allMAMH.empty()) {
         cout << "Khong co mon hoc nao.\n";
         return;

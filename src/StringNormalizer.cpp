@@ -1,5 +1,4 @@
 #include "../include/StringNormalizer.h"
-#include <algorithm>
 #include <cctype>
 
 std::string StringNormalizer::trimIdentifier(const std::string& input) {

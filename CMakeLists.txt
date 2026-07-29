@@ -6,12 +6,26 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include_directories(include)
+include_directories(server)
+include_directories(server/handlers)
 
 # ============================================================
 # Target 1: HTTP Server
 # ============================================================
 add_executable(server
     "server.cpp"
+    "server/ServerContext.cpp"
+    "server/Diagnostics.cpp"
+    "server/RouteRegistry.cpp"
+    "server/ServerBootstrap.cpp"
+    "server/handlers/AuthHandler.cpp"
+    "server/handlers/ClassHandler.cpp"
+    "server/handlers/StudentHandler.cpp"
+    "server/handlers/SubjectHandler.cpp"
+    "server/handlers/QuestionHandler.cpp"
+    "server/handlers/ExamHandler.cpp"
+    "server/handlers/ReportHandler.cpp"
+    "server/handlers/AdminHandler.cpp"
     "src/Auth.cpp"
     "src/Class.cpp"
     "src/Student.cpp"
@@ -23,13 +37,13 @@ add_executable(server
     "src/Exam.cpp"
     "src/Utils.cpp"
     "src/PathResolver.cpp"
+    "src/IndexManager.cpp"
     "src/StorageManager.cpp"
     "src/StorageValidator.cpp"
     "src/StorageDeserializer.cpp"
     "src/StorageVerifier.cpp"
     "src/StorageIntegrityChecker.cpp"
     "src/StringNormalizer.cpp"
-    "src/Migrator.cpp"
 )
 
 if (WIN32)
@@ -53,11 +67,16 @@ add_executable(console
     "src/Exam.cpp"
     "src/Utils.cpp"
     "src/PathResolver.cpp"
+    "src/IndexManager.cpp"
     "src/StorageManager.cpp"
     "src/StorageValidator.cpp"
     "src/StorageDeserializer.cpp"
     "src/StorageVerifier.cpp"
     "src/StorageIntegrityChecker.cpp"
     "src/StringNormalizer.cpp"
-    "src/Migrator.cpp"
 )
+
+# ============================================================
+# Target 3: PTIT Data Generator
+# ============================================================
+add_subdirectory(tools/DataGenerator)

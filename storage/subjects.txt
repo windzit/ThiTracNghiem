@@ -1,5 +1,0 @@
-MAMH|TENMH|USED
-INT13145|Cau truc du lieu va giai thuat|0
-INT1332|Co so du lieu|0
-INT1339|Lap trinh C++|0
-INT1415|Mang may tinh|1

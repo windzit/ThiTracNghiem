@@ -2,7 +2,6 @@
 #include "../include/StorageManager.h"
 #include <fstream>
 #include <sstream>
-#include <algorithm>
 #include <cctype>
 #include <locale>
 #include <iostream>

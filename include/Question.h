@@ -47,6 +47,7 @@ public:
 
     bool save(const char* MAMH);
     bool load(const char* MAMH);
+    dsCHT* getRoot() const { return root; }
 private:
     dsCHT* root;
 

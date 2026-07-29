@@ -1,4 +1,5 @@
 #include "../include/StorageManager.h"
+#include "../include/IndexManager.h"
 #include "../include/StorageValidator.h"
 #include "../include/StorageVerifier.h"
 #include "../include/StorageIntegrityChecker.h"
@@ -26,6 +27,12 @@ bool StorageManager::initializeStorage() {
     if (!fs::exists(dir)) {
         fs::create_directories(dir);
     }
+    PathResolver::getDataDir();
+    PathResolver::getIndexDir();
+    PathResolver::getBackupDir();
+    IndexManager::getInstance().loadQuestionIndex();
+    IndexManager::getInstance().loadStudentIndex();
+    IndexManager::getInstance().loadHistoryIndex();
     return true;
 }
 
@@ -437,6 +444,10 @@ bool StorageManager::loadAllData(Class& dsl, Subject& dsmh) {
     StorageIntegrityChecker::auditStorageIntegrity(dsl, dsmh, cachedExamSessions);
     std::cout << "[STARTUP LOG] [END] StorageIntegrityChecker::auditStorageIntegrity\n";
 
+    std::cout << "[STARTUP LOG] [BEGIN] rebuildIndexes\n";
+    rebuildIndexes();
+    std::cout << "[STARTUP LOG] [END] rebuildIndexes\n";
+
     std::cout << "[STARTUP LOG] [END] loadAllData\n";
     return true;
 }
@@ -517,6 +528,8 @@ bool StorageManager::saveStudents(Class& dsl) {
         std::cerr << "[StorageVerification] Deep verification failed: " << verifyErr << std::endl;
         return false;
     }
+    IndexManager::getInstance().rebuildStudentIndex();
+    IndexManager::getInstance().saveStudentIndex();
     return true;
 }
 
@@ -600,6 +613,8 @@ bool StorageManager::saveQuestions(Subject& dsmh) {
         std::cerr << "[StorageVerification] Deep verification failed: " << verifyErr << std::endl;
         return false;
     }
+    IndexManager::getInstance().rebuildQuestionIndex();
+    IndexManager::getInstance().saveQuestionIndex();
     return true;
 }
 
@@ -778,6 +793,8 @@ bool StorageManager::appendExamHistory(const ExamSession& session, float diem) {
         std::cerr << "[StorageVerification] " << verifyErr << std::endl;
         return false;
     }
+    IndexManager::getInstance().rebuildHistoryIndex();
+    IndexManager::getInstance().saveHistoryIndex();
     return true;
 }
 
@@ -825,8 +842,21 @@ bool StorageManager::resetToDefault() {
     dirty = false;
     opCount = 0;
 
+    IndexManager::getInstance().clear();
+    IndexManager::getInstance().rebuildAllIndexes();
+
     std::cout << "[ResetStorage] 10 files reset to default empty state.\n";
     return true;
+}
+
+bool StorageManager::rebuildIndexes() {
+    return IndexManager::getInstance().rebuildAllIndexes();
+}
+
+bool StorageManager::syncIndexes() {
+    return IndexManager::getInstance().saveQuestionIndex() &&
+           IndexManager::getInstance().saveStudentIndex() &&
+           IndexManager::getInstance().saveHistoryIndex();
 }
 
 bool StorageManager::saveAllData(Class& dsl, Subject& dsmh) {

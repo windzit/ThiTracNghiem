@@ -2,7 +2,6 @@
 #include "../include/StringNormalizer.h"
 #include <iostream>
 #include <fstream>
-#include <algorithm>
 #include <cctype>
 #include <cmath>
 

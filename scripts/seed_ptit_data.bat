@@ -5,16 +5,21 @@ echo [0] Stopping any running server instance...
 taskkill /f /im server.exe > nul 2>&1
 ping 127.0.0.1 -n 2 > nul
 
-set SERVER_EXE=build\Release\server.exe
-if not exist %SERVER_EXE% set SERVER_EXE=build\Debug\server.exe
+set SERVER_EXE=build\Debug\server.exe
+if not exist %SERVER_EXE% set SERVER_EXE=build\Release\server.exe
 if not exist %SERVER_EXE% set SERVER_EXE=server.exe
 
 echo [1] Resetting storage directory to clean default state...
 %SERVER_EXE% --reset-storage
 
 echo [2] Starting fresh server for seeding...
-start /b %SERVER_EXE% > seed_server.log 2>&1
-ping 127.0.0.1 -n 3 > nul
+start "ThiTracNghiem Server" /min %SERVER_EXE%
+
+echo [2.1] Waiting for API server to become ready...
+:wait_server
+ping 127.0.0.1 -n 2 > nul
+curl -s http://localhost:8080/ > nul 2>&1
+if errorlevel 1 goto wait_server
 
 echo [2] Creating 4 classes...
 curl -s -X POST http://localhost:8080/api/classes -H "Content-Type: application/json" -d "{\"malop\":\"D22CQCN01-N\",\"tenlop\":\"Lop CNTT 1 Khoa 2022\"}" > nul

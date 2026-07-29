@@ -15,6 +15,8 @@ void PathResolver::init(const std::string& executablePath) {
         s_execDir = "";
         std::cerr << "[PathResolver] Warning: Could not resolve executable path. Falling back to CWD.\n";
     }
+
+    migrateLegacyStorage();
 }
 
 std::string PathResolver::getStorageDir() {
@@ -24,8 +26,8 @@ std::string PathResolver::getStorageDir() {
         for (int level = 0; level <= 5; level++) {
             fs::path candidate = cur / "storage";
             if (fs::exists(candidate) && fs::is_directory(candidate)) {
-                // Verify that candidate directory actually contains storage data files or is a valid project storage
-                if (fs::exists(candidate / "Classes.txt") || fs::exists(candidate / "metadata.txt") || fs::exists(candidate / "subjects.txt")) {
+                // Verify that candidate directory actually contains storage data files, data subfolder, or is a valid project storage
+                if (fs::exists(candidate / "data") || fs::exists(candidate / "classes.txt") || fs::exists(candidate / "metadata.txt") || fs::exists(candidate / "subjects.txt")) {
                     return fs::absolute(candidate).string();
                 }
             }
@@ -67,7 +69,74 @@ std::string PathResolver::getStorageDir() {
     return fs::absolute(defaultPath).string();
 }
 
+std::string PathResolver::getDataDir() {
+    fs::path storagePath(getStorageDir());
+    fs::path dataPath = storagePath / "data";
+    if (!fs::exists(dataPath)) {
+        std::error_code ec;
+        fs::create_directories(dataPath, ec);
+    }
+    return dataPath.string();
+}
+
+std::string PathResolver::getIndexDir() {
+    fs::path storagePath(getStorageDir());
+    fs::path indexPath = storagePath / "indexes";
+    if (!fs::exists(indexPath)) {
+        std::error_code ec;
+        fs::create_directories(indexPath, ec);
+    }
+    return indexPath.string();
+}
+
+std::string PathResolver::getBackupDir() {
+    fs::path storagePath(getStorageDir());
+    fs::path backupPath = storagePath / "backup";
+    if (!fs::exists(backupPath)) {
+        std::error_code ec;
+        fs::create_directories(backupPath, ec);
+    }
+    return backupPath.string();
+}
+
 std::string PathResolver::getFilePath(const std::string& filename) {
-    fs::path dir(getStorageDir());
+    if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".idx") {
+        return getIndexPath(filename);
+    }
+    fs::path dir(getDataDir());
     return (dir / filename).string();
 }
+
+std::string PathResolver::getIndexPath(const std::string& indexFilename) {
+    fs::path dir(getIndexDir());
+    return (dir / indexFilename).string();
+}
+
+void PathResolver::migrateLegacyStorage() {
+    std::string rootDirStr = getStorageDir();
+    fs::path rootDir(rootDirStr);
+    fs::path dataDir(getDataDir());
+    fs::path indexDir(getIndexDir());
+    fs::path backupDir(getBackupDir());
+
+    const char* targetFiles[] = {
+        "classes.txt", "students.txt", "subjects.txt", "questions.txt",
+        "scores.txt", "exam_history.txt", "exam_sessions.txt",
+        "metadata.txt", "SystemSettings.txt", "transaction.log"
+    };
+
+    for (const char* fname : targetFiles) {
+        fs::path oldFile = rootDir / fname;
+        fs::path newFile = dataDir / fname;
+        if (fs::exists(oldFile) && !fs::is_directory(oldFile) && !fs::exists(newFile)) {
+            std::error_code ec;
+            fs::rename(oldFile, newFile, ec);
+            if (ec) {
+                fs::copy_file(oldFile, newFile, fs::copy_options::overwrite_existing, ec);
+                fs::remove(oldFile, ec);
+            }
+            std::cout << "[PathResolver] Migrated legacy file: " << fname << " -> storage/data/" << fname << "\n";
+        }
+    }
+}
+

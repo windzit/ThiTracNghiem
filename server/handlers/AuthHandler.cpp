@@ -1,0 +1,67 @@
+#include "AuthHandler.h"
+#include "../ServerContext.h"
+#include "Auth.h"
+#include "Exam.h"
+
+using namespace std;
+
+void handle_login(const httplib::Request& req, httplib::Response& res) {
+    set_cors_headers(res);
+    json body;
+    try { body = json::parse(req.body); }
+    catch (...) { error_response(res, "Invalid JSON", 400); return; }
+
+    string username = body.value("username", "");
+    string password = body.value("password", "");
+    string role = body.value("role", "");
+
+    if (username.empty() || password.empty()) {
+        error_response(res, "Username and password required", 400); return;
+    }
+
+    if (role == "teacher") {
+        if (login_teacher(username, password)) {
+            json_response(res, {{"role","teacher"},{"username",username}});
+        } else { error_response(res, "Invalid credentials", 401); }
+    } else if (role == "student") {
+        if (login_student(*dsl.getRoot(), username, password)) {
+            SinhVien* sv = nullptr;
+            dsLop* root = dsl.getRoot();
+            for (int i = 0; i < root->n && !sv; i++)
+                if (root->dslop[i]) sv = root->dslop[i]->dssinhvien.find(username);
+            if (!sv) { error_response(res, "Student not found", 404); return; }
+
+            json_response(res, {
+                {"role","student"},
+                {"masv",sv->MASV},
+                {"ho",sv->HO},
+                {"ten",sv->TEN},
+                {"phai",sv->PHAI}
+            });
+        } else { error_response(res, "Invalid credentials", 401); }
+    } else { error_response(res, "Role must be teacher or student", 400); }
+}
+
+void handle_logout(const httplib::Request& req, httplib::Response& res) {
+    set_cors_headers(res);
+    json body;
+    try { body = json::parse(req.body); }
+    catch (...) { body = json::object(); }
+
+    string userId = body.value("userId", req.get_param_value("userId"));
+    string role = body.value("role", req.get_param_value("role"));
+
+    if (role == "student" || role == "STUDENT") {
+        ExamSession activeExam;
+        if (loadExamSession(userId, activeExam) && activeExam.in_progress && (calculateRemainingSeconds(activeExam) > 0)) {
+            custom_json_response(res, {
+                {"success", false},
+                {"error", "Forbidden"},
+                {"message", "Khong the dang xuat khi dang lam bai thi"}
+            }, 403);
+            return;
+        }
+    }
+
+    json_response(res, {{"success", true}});
+}

@@ -3,7 +3,6 @@
 #include "Subject.h"
 #include "Exam.h"
 #include "PathResolver.h"
-#include <vector>
 
 // Out of Scope Notice: Hash Table tra cuu sinh vien (MASV -> Student*)
 // thuoc ngoai pham vi cua dot nay - se trien khai o giai doan toi uu tra cuu rieng.
@@ -54,6 +53,10 @@ public:
 
     // Derived Used Flags Rebuild Strategy
     void rebuildUsedFlags(Subject& dsmh);
+
+    // Index Manager Acceleration Coordination
+    bool rebuildIndexes();
+    bool syncIndexes();
 
     // Atomic Safe File Writer
     static bool atomicWriteFile(const std::string& targetPath, const std::string& content);
