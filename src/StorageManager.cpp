@@ -1,7 +1,9 @@
 #include "../include/StorageManager.h"
 #include "../include/IndexManager.h"
+#include "../include/CommonTypes.h"
 #include "../include/StorageValidator.h"
 #include "../include/StorageVerifier.h"
+
 #include "../include/StorageIntegrityChecker.h"
 #include "../include/StringNormalizer.h"
 #include "../include/Utils.h"
@@ -9,13 +11,19 @@
 #include <sstream>
 #include <filesystem>
 #include <iostream>
-#include <algorithm>
 #include <functional>
+
+
 
 namespace fs = std::filesystem;
 
 static int cachedLastQuestionId = 0;
 static DArray<ExamSession> cachedExamSessions;
+
+static int s_deletedStudentCount  = 0;
+static int s_deletedQuestionCount = 0;
+static int s_deletedSubjectCount  = 0;
+static int s_deletedClassCount    = 0;
 
 StorageManager& StorageManager::getInstance() {
     static StorageManager instance;
@@ -30,11 +38,15 @@ bool StorageManager::initializeStorage() {
     PathResolver::getDataDir();
     PathResolver::getIndexDir();
     PathResolver::getBackupDir();
-    IndexManager::getInstance().loadQuestionIndex();
-    IndexManager::getInstance().loadStudentIndex();
-    IndexManager::getInstance().loadHistoryIndex();
+
+    // 1. Startup Compaction Check (runs compaction if threshold met BEFORE loading runtime indexes)
+    checkAndExecuteStartupCompaction();
+
+    // 2. Audit and load runtime indexes with startup terminal report
+    IndexManager::getInstance().auditAndLoadIndexes();
     return true;
 }
+
 
 bool StorageManager::atomicWriteFile(const std::string& targetPath, const std::string& content) {
     std::string tempPath = targetPath + ".tmp";
@@ -48,11 +60,14 @@ bool StorageManager::atomicWriteFile(const std::string& targetPath, const std::s
     std::error_code ec;
     fs::rename(tempPath, targetPath, ec);
     if (ec) {
-        fs::remove(tempPath, ec);
-        return false;
+        std::error_code ec2;
+        fs::copy_file(tempPath, targetPath, fs::copy_options::overwrite_existing, ec2);
+        fs::remove(tempPath, ec2);
+        if (ec2) return false;
     }
     return true;
 }
+
 
 void StorageManager::markDirty() {
     dirty = true;
@@ -99,6 +114,12 @@ bool StorageManager::loadClasses(Class& dsl) {
         if (tokens.size() >= 2) {
             std::string malop = trim(tokens[0]);
             std::string tenlop = trim(tokens[1]);
+            std::string status = tokens.size() >= 3 ? trim(tokens[2]) : "0";
+            if (status == "1") {
+                s_deletedClassCount++;
+                continue; // Skip deleted class record
+            }
+
             if (!malop.empty() && !dsl.find(malop)) {
                 Lop* lop = new Lop();
                 lop->MALOP = malop;
@@ -145,6 +166,11 @@ bool StorageManager::loadStudents(Class& dsl) {
             std::string ten = trim(tokens[3]);
             std::string phai = trim(tokens[4]);
             std::string pass = tokens.size() >= 6 ? trim(tokens[5]) : "";
+            std::string status = tokens.size() >= 7 ? trim(tokens[6]) : "0";
+            if (status == "1") {
+                s_deletedStudentCount++;
+                continue; // Skip deleted student record
+            }
 
             if (!malop.empty() && !masv.empty()) {
                 Lop* lop = dsl.find(malop);
@@ -189,6 +215,11 @@ bool StorageManager::loadSubjects(Subject& dsmh) {
             std::string mamh = trim(tokens[0]);
             std::string tenmh = trim(tokens[1]);
             bool used = tokens.size() >= 3 ? (trim(tokens[2]) == "1" || trim(tokens[2]) == "true") : false;
+            std::string status = tokens.size() >= 4 ? trim(tokens[3]) : "0";
+            if (status == "1") {
+                s_deletedSubjectCount++;
+                continue; // Skip deleted subject record
+            }
 
             if (!mamh.empty() && !dsmh.find(mamh.c_str())) {
                 MonHoc mh;
@@ -236,8 +267,16 @@ bool StorageManager::loadQuestions(Subject& dsmh) {
             std::string c = tokens[5];
             std::string d = tokens[6];
             std::string dapan = trim(tokens[7]);
-            bool used = tokens.size() >= 9 ? (trim(tokens[8]) == "1" || trim(tokens[8]) == "true") : false;
-            bool deleted = tokens.size() >= 10 ? (trim(tokens[9]) == "1" || trim(tokens[9]) == "true") : false;
+            bool used = false;
+            std::string status = tokens.size() >= 9 ? trim(tokens[8]) : "0";
+            if (status == "1") {
+                s_deletedQuestionCount++;
+                continue; // Skip hard deleted question record
+            }
+            if (status == "2") {
+                s_deletedQuestionCount++;
+            }
+            bool deleted = (status == "2");
 
             NodeMH* node = dsmh.find(mamh.c_str());
             if (node) {
@@ -458,7 +497,7 @@ bool StorageManager::loadAllData(Class& dsl, Subject& dsmh) {
 
 bool StorageManager::saveClasses(Class& dsl) {
     std::ostringstream ss;
-    ss << "MALOP|TENLOP\n";
+    ss << "MALOP          |TENLOP                                            |S\n";
     int validCount = 0;
     dsLop* root = dsl.getRoot();
     if (root) {
@@ -469,17 +508,13 @@ bool StorageManager::saveClasses(Class& dsl) {
                     std::cerr << "[StorageValidation] Class validation failed: " << errReason << std::endl;
                     return false;
                 }
-                std::cout << "[TENLOP AUDIT Step 4] Before Serialize RAM TENLOP [" << root->dslop[i]->MALOP << "]: '"
-                          << root->dslop[i]->TENLOP << "', len=" << root->dslop[i]->TENLOP.length() << std::endl;
-
-                ss << root->dslop[i]->MALOP << '|'
-                   << root->dslop[i]->TENLOP << '\n';
+                ss << std::left << std::setw(15) << root->dslop[i]->MALOP << '|'
+                   << std::setw(50) << root->dslop[i]->TENLOP << '|'
+                   << STATUS_ACTIVE << '\n';
                 validCount++;
             }
         }
     }
-
-    std::cout << "[TENLOP AUDIT Step 5] Final String for File:\n" << ss.str() << std::endl;
 
     std::string targetPath = PathResolver::getFilePath("classes.txt");
     if (!atomicWriteFile(targetPath, ss.str())) return false;
@@ -489,12 +524,14 @@ bool StorageManager::saveClasses(Class& dsl) {
         std::cerr << "[StorageVerification] Deep verification failed: " << verifyErr << std::endl;
         return false;
     }
+    IndexManager::getInstance().rebuildClassIndex();
+    IndexManager::getInstance().saveClassIndex();
     return true;
 }
 
 bool StorageManager::saveStudents(Class& dsl) {
     std::ostringstream ss;
-    ss << "MALOP|MASV|HO|TEN|PHAI|PASSWORD\n";
+    ss << "MALOP          |MASV      |HO                                                |TEN            |PHAI|PASSWORD                        |S\n";
     int validCount = 0;
     dsLop* root = dsl.getRoot();
     if (root) {
@@ -509,12 +546,13 @@ bool StorageManager::saveStudents(Class& dsl) {
                     std::cerr << "[StorageValidation] Student validation failed: " << errReason << std::endl;
                     return false;
                 }
-                ss << lop->MALOP << '|'
-                   << sv.MASV << '|'
-                   << sv.HO << '|'
-                   << sv.TEN << '|'
-                   << sv.PHAI << '|'
-                   << sv.passsword << '\n';
+                ss << std::left << std::setw(15) << lop->MALOP << '|'
+                   << std::setw(10) << sv.MASV << '|'
+                   << std::setw(50) << sv.HO << '|'
+                   << std::setw(15) << sv.TEN << '|'
+                   << std::setw(4)  << sv.PHAI << '|'
+                   << std::setw(32) << sv.passsword << '|'
+                   << STATUS_ACTIVE << '\n';
                 validCount++;
                 cur = cur->next;
             }
@@ -539,7 +577,10 @@ static bool validateAndCollectSubjects(NodeMH* node, std::ostringstream& subjSS,
 
     const MonHoc& mh = node->data;
     if (!StorageValidator::validateSubject(mh, errReason)) return false;
-    subjSS << mh.MAMH << '|' << mh.TENMH << '|' << (mh.used ? 1 : 0) << '\n';
+    subjSS << std::left << std::setw(15) << mh.MAMH << '|'
+           << std::setw(50) << mh.TENMH << '|'
+           << (mh.used ? '1' : '0') << '|'
+           << STATUS_ACTIVE << '\n';
     subjectCount++;
 
     return validateAndCollectSubjects(node->right, subjSS, subjectCount, errReason);
@@ -555,16 +596,16 @@ static bool validateAndCollectQuestions(NodeMH* node, std::ostringstream& questS
         if (qNode) {
             const CauHoi& q = qNode->cauhoi;
             if (!StorageValidator::validateQuestion(q, mh.MAMH, errReason)) return false;
-            questSS << mh.MAMH << '|'
-                    << q.ID << '|'
-                    << q.NOIDUNG << '|'
-                    << q.A << '|'
-                    << q.B << '|'
-                    << q.C << '|'
-                    << q.D << '|'
+            char st = q.deleted ? STATUS_SOFT_DELETED : STATUS_ACTIVE;
+            questSS << std::left  << std::setfill(' ') << std::setw(15) << mh.MAMH << '|'
+                    << std::right << std::setfill('0') << std::setw(10) << q.ID << '|'
+                    << std::left  << std::setfill(' ') << std::setw(300) << q.NOIDUNG << '|'
+                    << std::setw(100) << q.A << '|'
+                    << std::setw(100) << q.B << '|'
+                    << std::setw(100) << q.C << '|'
+                    << std::setw(100) << q.D << '|'
                     << q.DAPAN_DUNG << '|'
-                    << (q.used ? 1 : 0) << '|'
-                    << (q.deleted ? 1 : 0) << '\n';
+                    << st << '\n';
             questionCount++;
         }
     }
@@ -574,7 +615,7 @@ static bool validateAndCollectQuestions(NodeMH* node, std::ostringstream& questS
 
 bool StorageManager::saveSubjects(Subject& dsmh) {
     std::ostringstream subjSS;
-    subjSS << "MAMH|TENMH|USED\n";
+    subjSS << "MAMH           |TENMH                                             |U|S\n";
     int subjectCount = 0;
     std::string errReason;
 
@@ -591,12 +632,14 @@ bool StorageManager::saveSubjects(Subject& dsmh) {
         std::cerr << "[StorageVerification] Deep verification failed: " << verifyErr << std::endl;
         return false;
     }
+    IndexManager::getInstance().rebuildSubjectIndex();
+    IndexManager::getInstance().saveSubjectIndex();
     return true;
 }
 
 bool StorageManager::saveQuestions(Subject& dsmh) {
     std::ostringstream questSS;
-    questSS << "MAMH|ID|NOIDUNG|A|B|C|D|DAPAN_DUNG|USED|DELETED\n";
+    questSS << std::left << std::setfill(' ') << std::setw(15) << "MAMH" << '|' << std::right << std::setfill(' ') << std::setw(10) << "ID" << '|' << std::left << std::setfill(' ') << std::setw(300) << "NOIDUNG" << '|' << std::setw(100) << "A" << '|' << std::setw(100) << "B" << '|' << std::setw(100) << "C" << '|' << std::setw(100) << "D" << '|' << "A" << '|' << "S" << '\n';
     int questionCount = 0;
     std::string errReason;
 
@@ -825,11 +868,17 @@ bool StorageManager::resetToDefault() {
     }
 
     // 2. Write 9 default header-only files via atomicWriteFile
+    std::ostringstream cHdr, stHdr, subHdr, qHdr;
+    cHdr << std::left << std::setw(15) << "MALOP" << '|' << std::setw(50) << "TENLOP" << '|' << "S" << '\n';
+    stHdr << std::left << std::setw(15) << "MALOP" << '|' << std::setw(10) << "MASV" << '|' << std::setw(50) << "HO" << '|' << std::setw(15) << "TEN" << '|' << std::setw(4) << "PHAI" << '|' << std::setw(32) << "PASSWORD" << '|' << "S" << '\n';
+    subHdr << std::left << std::setw(15) << "MAMH" << '|' << std::setw(50) << "TENMH" << '|' << "U" << '|' << "S" << '\n';
+    qHdr << std::left << std::setfill(' ') << std::setw(15) << "MAMH" << '|' << std::right << std::setfill(' ') << std::setw(10) << "ID" << '|' << std::left << std::setfill(' ') << std::setw(300) << "NOIDUNG" << '|' << std::setw(100) << "A" << '|' << std::setw(100) << "B" << '|' << std::setw(100) << "C" << '|' << std::setw(100) << "D" << '|' << "A" << '|' << "S" << '\n';
+
     atomicWriteFile(PathResolver::getFilePath("metadata.txt"), "SCHEMA_VERSION=2.0\nLAST_QUESTION_ID=0\n");
-    atomicWriteFile(PathResolver::getFilePath("classes.txt"), "MALOP|TENLOP\n");
-    atomicWriteFile(PathResolver::getFilePath("students.txt"), "MALOP|MASV|HO|TEN|PHAI|PASSWORD\n");
-    atomicWriteFile(PathResolver::getFilePath("subjects.txt"), "MAMH|TENMH|USED\n");
-    atomicWriteFile(PathResolver::getFilePath("questions.txt"), "MAMH|ID|NOIDUNG|A|B|C|D|DAPAN_DUNG|USED|DELETED\n");
+    atomicWriteFile(PathResolver::getFilePath("classes.txt"), cHdr.str());
+    atomicWriteFile(PathResolver::getFilePath("students.txt"), stHdr.str());
+    atomicWriteFile(PathResolver::getFilePath("subjects.txt"), subHdr.str());
+    atomicWriteFile(PathResolver::getFilePath("questions.txt"), qHdr.str());
     atomicWriteFile(PathResolver::getFilePath("scores.txt"), "MASV|MAMH|DIEM\n");
     atomicWriteFile(PathResolver::getFilePath("exam_history.txt"), "MASV|MAMH|THOIGIAN_BATDAU|DIEM|QUESTION_IDS|ANSWERS\n");
     atomicWriteFile(PathResolver::getFilePath("exam_sessions.txt"), "MASV|MAMH|THOIGIAN_BATDAU|TONGPHUT|IN_PROGRESS|LAST_ACT|QUESTION_IDS|ANSWERS\n");
@@ -971,4 +1020,682 @@ void StorageManager::rebuildUsedFlags(Subject& dsmh) {
         }
         scFile.close();
     }
+}
+
+// ============================================================
+// FIXED-LENGTH RECORD DIRECT seekg() / seekp() OPERATIONS
+// ============================================================
+
+bool StorageManager::readStudentAt(int64_t offset, SinhVien& outSv, std::string& outMalop) {
+    if (offset < 0) return false;
+    std::string filePath = PathResolver::getFilePath("students.txt");
+    std::ifstream file(filePath, std::ios::in | std::ios::binary);
+    if (!file.is_open()) return false;
+
+    file.seekg(offset);
+    std::string line;
+    if (!std::getline(file, line)) {
+        file.close();
+        return false;
+    }
+    file.close();
+
+    DArray<std::string> tokens = split(line, '|');
+    if (tokens.size() >= 7) {
+        std::string status = trim(tokens[6]);
+        if (status == "1") return false; // Deleted
+
+        outMalop = trim(tokens[0]);
+        outSv.MASV = trim(tokens[1]);
+        outSv.HO = trim(tokens[2]);
+        outSv.TEN = trim(tokens[3]);
+        outSv.PHAI = trim(tokens[4]);
+        outSv.passsword = trim(tokens[5]);
+        return true;
+    }
+    return false;
+}
+
+bool StorageManager::writeStudentAt(int64_t offset, const SinhVien& sv, const std::string& malop, char status) {
+    if (offset < 0) return false;
+    std::string filePath = PathResolver::getFilePath("students.txt");
+    std::fstream file(filePath, std::ios::in | std::ios::out | std::ios::binary);
+    if (!file.is_open()) return false;
+
+    std::ostringstream ss;
+    ss << std::left << std::setw(15) << malop << '|'
+       << std::setw(10) << sv.MASV << '|'
+       << std::setw(50) << sv.HO << '|'
+       << std::setw(15) << sv.TEN << '|'
+       << std::setw(4)  << sv.PHAI << '|'
+       << std::setw(32) << sv.passsword << '|'
+       << status << '\n';
+
+    std::string recordStr = ss.str();
+    file.seekp(offset);
+    file.write(recordStr.c_str(), recordStr.length());
+    file.flush();
+    file.close();
+    return true;
+}
+
+bool StorageManager::appendStudent(const SinhVien& sv, const std::string& malop, int64_t& outOffset) {
+    std::string filePath = PathResolver::getFilePath("students.txt");
+    std::fstream file(filePath, std::ios::in | std::ios::out | std::ios::binary | std::ios::ate);
+    if (!file.is_open()) {
+        std::ofstream newFile(filePath, std::ios::out | std::ios::binary);
+        newFile << "MALOP          |MASV      |HO                                                |TEN            |PHAI|PASSWORD                        |S\n";
+        newFile.close();
+        file.open(filePath, std::ios::in | std::ios::out | std::ios::binary | std::ios::ate);
+    }
+    if (!file.is_open()) return false;
+
+    file.seekp(0, std::ios::end);
+    outOffset = file.tellp();
+
+    std::ostringstream ss;
+    ss << std::left << std::setw(15) << malop << '|'
+       << std::setw(10) << sv.MASV << '|'
+       << std::setw(50) << sv.HO << '|'
+       << std::setw(15) << sv.TEN << '|'
+       << std::setw(4)  << sv.PHAI << '|'
+       << std::setw(32) << sv.passsword << '|'
+       << STATUS_ACTIVE << '\n';
+
+    std::string recordStr = ss.str();
+    file.write(recordStr.c_str(), recordStr.length());
+    file.flush();
+    file.close();
+
+    IndexManager::getInstance().updateStudentOffset(sv.MASV, outOffset);
+    return true;
+}
+
+bool StorageManager::markStudentStatusAt(int64_t offset, char status) {
+    if (offset < 0) return false;
+    std::string filePath = PathResolver::getFilePath("students.txt");
+    std::fstream file(filePath, std::ios::in | std::ios::out | std::ios::binary);
+    if (!file.is_open()) return false;
+
+    file.seekp(offset + StorageConfig::STATUS_OFFSET_STUDENT);
+    file.write(&status, 1);
+    file.flush();
+    file.close();
+
+    if (status == STATUS_DELETED || status == STATUS_SOFT_DELETED) {
+        incrementDeletedCount("student");
+    }
+    return true;
+}
+
+bool StorageManager::readQuestionAt(int64_t offset, CauHoi& outQ, std::string& outMamh) {
+    if (offset < 0) return false;
+    std::string filePath = PathResolver::getFilePath("questions.txt");
+    std::ifstream file(filePath, std::ios::in | std::ios::binary);
+    if (!file.is_open()) return false;
+
+    file.seekg(offset);
+    std::string line;
+    if (!std::getline(file, line)) {
+        file.close();
+        return false;
+    }
+    file.close();
+
+    DArray<std::string> tokens = split(line, '|');
+    if (tokens.size() >= 9) {
+        std::string status = trim(tokens[8]);
+        if (status == "1") return false; // Deleted unused
+
+        outMamh = trim(tokens[0]);
+        outQ.ID = std::stoi(trim(tokens[1]));
+        outQ.NOIDUNG = trim(tokens[2]);
+        outQ.A = trim(tokens[3]);
+        outQ.B = trim(tokens[4]);
+        outQ.C = trim(tokens[5]);
+        outQ.D = trim(tokens[6]);
+        outQ.DAPAN_DUNG = trim(tokens[7]).empty() ? 'A' : trim(tokens[7])[0];
+        outQ.deleted = (status == "2"); // Soft deleted
+        return true;
+    }
+    return false;
+}
+
+bool StorageManager::writeQuestionAt(int64_t offset, const CauHoi& q, const std::string& mamh, char status) {
+    if (offset < 0) return false;
+    std::string filePath = PathResolver::getFilePath("questions.txt");
+    std::fstream file(filePath, std::ios::in | std::ios::out | std::ios::binary);
+    if (!file.is_open()) return false;
+
+    std::ostringstream ss;
+    ss << std::left  << std::setfill(' ') << std::setw(15) << mamh << '|'
+       << std::right << std::setfill('0') << std::setw(10) << q.ID << '|'
+       << std::left  << std::setfill(' ') << std::setw(300) << q.NOIDUNG << '|'
+       << std::setw(100) << q.A << '|'
+       << std::setw(100) << q.B << '|'
+       << std::setw(100) << q.C << '|'
+       << std::setw(100) << q.D << '|'
+       << q.DAPAN_DUNG << '|'
+       << status << '\n';
+
+    std::string recordStr = ss.str();
+    file.seekp(offset);
+    file.write(recordStr.c_str(), recordStr.length());
+    file.flush();
+    file.close();
+    return true;
+}
+
+bool StorageManager::appendQuestion(const CauHoi& q, const std::string& mamh, int64_t& outOffset) {
+    std::string filePath = PathResolver::getFilePath("questions.txt");
+    std::fstream file(filePath, std::ios::in | std::ios::out | std::ios::binary | std::ios::ate);
+    if (!file.is_open()) {
+        std::ofstream newFile(filePath, std::ios::out | std::ios::binary);
+        newFile << "MAMH           |ID        |NOIDUNG                                                                                                                                                                                                                                                                                                                        |A                                                                                                   |B                                                                                                   |C                                                                                                   |D                                                                                                   |A|S\n";
+        newFile.close();
+        file.open(filePath, std::ios::in | std::ios::out | std::ios::binary | std::ios::ate);
+    }
+    if (!file.is_open()) return false;
+
+    file.seekp(0, std::ios::end);
+    outOffset = file.tellp();
+
+    std::ostringstream ss;
+    ss << std::left  << std::setfill(' ') << std::setw(15) << mamh << '|'
+       << std::right << std::setfill('0') << std::setw(10) << q.ID << '|'
+       << std::left  << std::setfill(' ') << std::setw(300) << q.NOIDUNG << '|'
+       << std::setw(100) << q.A << '|'
+       << std::setw(100) << q.B << '|'
+       << std::setw(100) << q.C << '|'
+       << std::setw(100) << q.D << '|'
+       << q.DAPAN_DUNG << '|'
+       << STATUS_ACTIVE << '\n';
+
+    std::string recordStr = ss.str();
+    file.write(recordStr.c_str(), recordStr.length());
+    file.flush();
+    file.close();
+
+    IndexManager::getInstance().updateQuestionOffset(q.ID, outOffset);
+    return true;
+}
+
+bool StorageManager::markQuestionStatusAt(int64_t offset, char status) {
+    if (offset < 0) return false;
+    std::string filePath = PathResolver::getFilePath("questions.txt");
+    std::fstream file(filePath, std::ios::in | std::ios::out | std::ios::binary);
+    if (!file.is_open()) return false;
+
+    file.seekp(offset + StorageConfig::STATUS_OFFSET_QUESTION);
+    file.write(&status, 1);
+    file.flush();
+    file.close();
+
+    if (status == STATUS_DELETED || status == STATUS_SOFT_DELETED) {
+        incrementDeletedCount("question");
+    }
+    return true;
+}
+
+bool StorageManager::readSubjectAt(int64_t offset, MonHoc& outMh) {
+    if (offset < 0) return false;
+    std::string filePath = PathResolver::getFilePath("subjects.txt");
+    std::ifstream file(filePath, std::ios::in | std::ios::binary);
+    if (!file.is_open()) return false;
+
+    file.seekg(offset);
+    std::string line;
+    if (!std::getline(file, line)) {
+        file.close();
+        return false;
+    }
+    file.close();
+
+    DArray<std::string> tokens = split(line, '|');
+    if (tokens.size() >= 4) {
+        std::string status = trim(tokens[3]);
+        if (status == "1") return false;
+
+        std::strcpy(outMh.MAMH, trim(tokens[0]).c_str());
+        outMh.TENMH = trim(tokens[1]);
+        outMh.used = (trim(tokens[2]) == "1");
+        return true;
+    }
+    return false;
+}
+
+bool StorageManager::writeSubjectAt(int64_t offset, const MonHoc& mh, char status) {
+    if (offset < 0) return false;
+    std::string filePath = PathResolver::getFilePath("subjects.txt");
+    std::fstream file(filePath, std::ios::in | std::ios::out | std::ios::binary);
+    if (!file.is_open()) return false;
+
+    std::ostringstream ss;
+    ss << std::left << std::setw(15) << mh.MAMH << '|'
+       << std::setw(50) << mh.TENMH << '|'
+       << (mh.used ? '1' : '0') << '|'
+       << status << '\n';
+
+    std::string recordStr = ss.str();
+    file.seekp(offset);
+    file.write(recordStr.c_str(), recordStr.length());
+    file.flush();
+    file.close();
+    return true;
+}
+
+bool StorageManager::appendSubject(const MonHoc& mh, int64_t& outOffset) {
+    std::string filePath = PathResolver::getFilePath("subjects.txt");
+    std::fstream file(filePath, std::ios::in | std::ios::out | std::ios::binary | std::ios::ate);
+    if (!file.is_open()) {
+        std::ofstream newFile(filePath, std::ios::out | std::ios::binary);
+        newFile << "MAMH           |TENMH                                             |U|S\n";
+        newFile.close();
+        file.open(filePath, std::ios::in | std::ios::out | std::ios::binary | std::ios::ate);
+    }
+    if (!file.is_open()) return false;
+
+    file.seekp(0, std::ios::end);
+    outOffset = file.tellp();
+
+    std::ostringstream ss;
+    ss << std::left << std::setw(15) << mh.MAMH << '|'
+       << std::setw(50) << mh.TENMH << '|'
+       << (mh.used ? '1' : '0') << '|'
+       << STATUS_ACTIVE << '\n';
+
+    std::string recordStr = ss.str();
+    file.write(recordStr.c_str(), recordStr.length());
+    file.flush();
+    file.close();
+
+    IndexManager::getInstance().updateSubjectOffset(mh.MAMH, outOffset);
+    return true;
+}
+
+bool StorageManager::markSubjectStatusAt(int64_t offset, char status) {
+    if (offset < 0) return false;
+    std::string filePath = PathResolver::getFilePath("subjects.txt");
+    std::fstream file(filePath, std::ios::in | std::ios::out | std::ios::binary);
+    if (!file.is_open()) return false;
+
+    file.seekp(offset + StorageConfig::STATUS_OFFSET_SUBJECT);
+    file.write(&status, 1);
+    file.flush();
+    file.close();
+
+    if (status == STATUS_DELETED || status == STATUS_SOFT_DELETED) {
+        incrementDeletedCount("subject");
+    }
+    return true;
+}
+
+bool StorageManager::readClassAt(int64_t offset, Lop& outLop) {
+    if (offset < 0) return false;
+    std::string filePath = PathResolver::getFilePath("classes.txt");
+    std::ifstream file(filePath, std::ios::in | std::ios::binary);
+    if (!file.is_open()) return false;
+
+    file.seekg(offset);
+    std::string line;
+    if (!std::getline(file, line)) {
+        file.close();
+        return false;
+    }
+    file.close();
+
+    DArray<std::string> tokens = split(line, '|');
+    if (tokens.size() >= 3) {
+        std::string status = trim(tokens[2]);
+        if (status == "1") return false;
+
+        outLop.MALOP = trim(tokens[0]);
+        outLop.TENLOP = trim(tokens[1]);
+        return true;
+    }
+    return false;
+}
+
+bool StorageManager::writeClassAt(int64_t offset, const Lop& lop, char status) {
+    if (offset < 0) return false;
+    std::string filePath = PathResolver::getFilePath("classes.txt");
+    std::fstream file(filePath, std::ios::in | std::ios::out | std::ios::binary);
+    if (!file.is_open()) return false;
+
+    std::ostringstream ss;
+    ss << std::left << std::setw(15) << lop.MALOP << '|'
+       << std::setw(50) << lop.TENLOP << '|'
+       << status << '\n';
+
+    std::string recordStr = ss.str();
+    file.seekp(offset);
+    file.write(recordStr.c_str(), recordStr.length());
+    file.flush();
+    file.close();
+    return true;
+}
+
+bool StorageManager::appendClass(const Lop& lop, int64_t& outOffset) {
+    std::string filePath = PathResolver::getFilePath("classes.txt");
+    std::fstream file(filePath, std::ios::in | std::ios::out | std::ios::binary | std::ios::ate);
+    if (!file.is_open()) {
+        std::ofstream newFile(filePath, std::ios::out | std::ios::binary);
+        newFile << "MALOP          |TENLOP                                            |S\n";
+        newFile.close();
+        file.open(filePath, std::ios::in | std::ios::out | std::ios::binary | std::ios::ate);
+    }
+    if (!file.is_open()) return false;
+
+    file.seekp(0, std::ios::end);
+    outOffset = file.tellp();
+
+    std::ostringstream ss;
+    ss << std::left << std::setw(15) << lop.MALOP << '|'
+       << std::setw(50) << lop.TENLOP << '|'
+       << STATUS_ACTIVE << '\n';
+
+    std::string recordStr = ss.str();
+    file.write(recordStr.c_str(), recordStr.length());
+    file.flush();
+    file.close();
+
+    IndexManager::getInstance().updateClassOffset(lop.MALOP, outOffset);
+    return true;
+}
+
+
+bool StorageManager::markClassStatusAt(int64_t offset, char status) {
+    if (offset < 0) return false;
+    std::string filePath = PathResolver::getFilePath("classes.txt");
+    std::fstream file(filePath, std::ios::in | std::ios::out | std::ios::binary);
+    if (!file.is_open()) return false;
+
+    file.seekp(offset + StorageConfig::STATUS_OFFSET_CLASS);
+    file.write(&status, 1);
+    file.flush();
+    file.close();
+
+    if (status == STATUS_DELETED || status == STATUS_SOFT_DELETED) {
+        incrementDeletedCount("class");
+    }
+    return true;
+}
+
+// ============================================================
+// METADATA DELETED COUNTER TRACKING & STARTUP COMPACTION CHECK
+// ============================================================
+
+constexpr int COMPACTION_DELETED_THRESHOLD = 50;
+
+void StorageManager::incrementDeletedCount(const std::string& entityType) {
+    if (entityType == "student") {
+        s_deletedStudentCount++;
+        if (s_deletedStudentCount >= StorageConfig::STUDENT_COMPACT_COUNT) {
+            compactStudents();
+        }
+    }
+    else if (entityType == "question") {
+        s_deletedQuestionCount++;
+        if (s_deletedQuestionCount >= StorageConfig::QUESTION_COMPACT_COUNT) {
+            compactQuestions();
+        }
+    }
+    else if (entityType == "subject") {
+        s_deletedSubjectCount++;
+        if (s_deletedSubjectCount >= StorageConfig::SUBJECT_COMPACT_COUNT) {
+            compactSubjects();
+        }
+    }
+    else if (entityType == "class") {
+        s_deletedClassCount++;
+        if (s_deletedClassCount >= StorageConfig::CLASS_COMPACT_COUNT) {
+            compactClasses();
+        }
+    }
+
+    // Update metadata.txt
+    std::ostringstream ss;
+    ss << "SCHEMA_VERSION=2.0\n"
+       << "LAST_QUESTION_ID=" << cachedLastQuestionId << "\n"
+       << "DELETED_STUDENT_COUNT=" << s_deletedStudentCount << "\n"
+       << "DELETED_QUESTION_COUNT=" << s_deletedQuestionCount << "\n"
+       << "DELETED_SUBJECT_COUNT=" << s_deletedSubjectCount << "\n"
+       << "DELETED_CLASS_COUNT=" << s_deletedClassCount << "\n";
+
+    atomicWriteFile(PathResolver::getFilePath("metadata.txt"), ss.str());
+}
+
+int StorageManager::getDeletedCount(const std::string& entityType) const {
+    if (entityType == "student") return s_deletedStudentCount;
+    if (entityType == "question") return s_deletedQuestionCount;
+    if (entityType == "subject") return s_deletedSubjectCount;
+    if (entityType == "class") return s_deletedClassCount;
+    return 0;
+}
+
+void StorageManager::resetDeletedCount(const std::string& entityType) {
+    if (entityType == "student") s_deletedStudentCount = 0;
+    else if (entityType == "question") s_deletedQuestionCount = 0;
+    else if (entityType == "subject") s_deletedSubjectCount = 0;
+    else if (entityType == "class") s_deletedClassCount = 0;
+    else {
+        s_deletedStudentCount = 0;
+        s_deletedQuestionCount = 0;
+        s_deletedSubjectCount = 0;
+        s_deletedClassCount = 0;
+    }
+
+    std::ostringstream ss;
+    ss << "SCHEMA_VERSION=2.0\n"
+       << "LAST_QUESTION_ID=" << cachedLastQuestionId << "\n"
+       << "DELETED_STUDENT_COUNT=" << s_deletedStudentCount << "\n"
+       << "DELETED_QUESTION_COUNT=" << s_deletedQuestionCount << "\n"
+       << "DELETED_SUBJECT_COUNT=" << s_deletedSubjectCount << "\n"
+       << "DELETED_CLASS_COUNT=" << s_deletedClassCount << "\n";
+
+    atomicWriteFile(PathResolver::getFilePath("metadata.txt"), ss.str());
+}
+
+static int countDeletedInFile(const std::string& filename, int statusTokenIdx) {
+    std::string filePath = PathResolver::getFilePath(filename);
+    std::ifstream file(filePath, std::ios::in | std::ios::binary);
+    if (!file.is_open()) return 0;
+    std::string line;
+    bool isHeader = true;
+    int count = 0;
+    while (std::getline(file, line)) {
+        if (line.empty()) continue;
+        if (isHeader) { isHeader = false; continue; }
+        DArray<std::string> tokens = split(line, '|');
+        if (tokens.size() > (size_t)statusTokenIdx) {
+            std::string st = trim(tokens[statusTokenIdx]);
+            if (st == "1" || st == "2") {
+                count++;
+            }
+        }
+    }
+    file.close();
+    return count;
+}
+
+bool StorageManager::checkAndExecuteStartupCompaction() {
+    s_deletedClassCount = countDeletedInFile("classes.txt", 2);
+    s_deletedStudentCount = countDeletedInFile("students.txt", 6);
+    s_deletedSubjectCount = countDeletedInFile("subjects.txt", 3);
+    s_deletedQuestionCount = countDeletedInFile("questions.txt", 8);
+
+    std::string metaPath = PathResolver::getFilePath("metadata.txt");
+    std::ifstream metaFile(metaPath);
+    if (metaFile.is_open()) {
+        std::string line;
+        while (std::getline(metaFile, line)) {
+            if (line.find("DELETED_STUDENT_COUNT=") == 0) {
+                try { int val = std::stoi(line.substr(22)); if (val > s_deletedStudentCount) s_deletedStudentCount = val; } catch (...) {}
+            } else if (line.find("DELETED_QUESTION_COUNT=") == 0) {
+                try { int val = std::stoi(line.substr(23)); if (val > s_deletedQuestionCount) s_deletedQuestionCount = val; } catch (...) {}
+            } else if (line.find("DELETED_SUBJECT_COUNT=") == 0) {
+                try { int val = std::stoi(line.substr(22)); if (val > s_deletedSubjectCount) s_deletedSubjectCount = val; } catch (...) {}
+            } else if (line.find("DELETED_CLASS_COUNT=") == 0) {
+                try { int val = std::stoi(line.substr(20)); if (val > s_deletedClassCount) s_deletedClassCount = val; } catch (...) {}
+            }
+        }
+        metaFile.close();
+    }
+
+    if (s_deletedClassCount >= StorageConfig::CLASS_COMPACT_COUNT) {
+        compactClasses();
+    }
+    if (s_deletedStudentCount >= StorageConfig::STUDENT_COMPACT_COUNT) {
+        compactStudents();
+    }
+    if (s_deletedSubjectCount >= StorageConfig::SUBJECT_COMPACT_COUNT) {
+        compactSubjects();
+    }
+    if (s_deletedQuestionCount >= StorageConfig::QUESTION_COMPACT_COUNT) {
+        compactQuestions();
+    }
+
+    return true;
+}
+
+
+// ============================================================
+// STORAGE COMPACTION ENGINE
+// ============================================================
+
+bool StorageManager::compactStudents() {
+    std::string filePath = PathResolver::getFilePath("students.txt");
+    std::ifstream in(filePath, std::ios::in | std::ios::binary);
+    if (!in.is_open()) return false;
+
+    std::ostringstream ss;
+    std::string line;
+    bool isHeader = true;
+    while (std::getline(in, line)) {
+        if (line.empty()) continue;
+        if (isHeader) {
+            ss << line << "\n";
+            isHeader = false;
+            continue;
+        }
+        DArray<std::string> tokens = split(line, '|');
+        if (tokens.size() >= 7) {
+            std::string status = trim(tokens[6]);
+            if (status != "1") { // Preserve Active ('0') and Soft Deleted ('2')
+                ss << line << "\n";
+            }
+        }
+    }
+    in.close();
+
+    if (!atomicWriteFile(filePath, ss.str())) return false;
+    IndexManager::getInstance().rebuildStudentIndex();
+    IndexManager::getInstance().saveStudentIndex();
+    resetDeletedCount("student");
+    return true;
+}
+
+bool StorageManager::compactQuestions() {
+    std::string filePath = PathResolver::getFilePath("questions.txt");
+    std::ifstream in(filePath, std::ios::in | std::ios::binary);
+    if (!in.is_open()) return false;
+
+    std::ostringstream ss;
+    std::string line;
+    bool isHeader = true;
+    while (std::getline(in, line)) {
+        if (line.empty()) continue;
+        if (isHeader) {
+            ss << line << "\n";
+            isHeader = false;
+            continue;
+        }
+        DArray<std::string> tokens = split(line, '|');
+        if (tokens.size() >= 9) {
+            std::string status = trim(tokens[8]);
+            if (status != "1") { // Drop Deleted Unused ('1'), Preserve Active ('0') and Soft Deleted Used ('2')
+                ss << line << "\n";
+            }
+        }
+    }
+    in.close();
+
+    if (!atomicWriteFile(filePath, ss.str())) return false;
+    IndexManager::getInstance().rebuildQuestionIndex();
+    IndexManager::getInstance().saveQuestionIndex();
+    resetDeletedCount("question");
+    return true;
+}
+
+bool StorageManager::compactSubjects() {
+    std::string filePath = PathResolver::getFilePath("subjects.txt");
+    std::ifstream in(filePath, std::ios::in | std::ios::binary);
+    if (!in.is_open()) return false;
+
+    std::ostringstream ss;
+    std::string line;
+    bool isHeader = true;
+    while (std::getline(in, line)) {
+        if (line.empty()) continue;
+        if (isHeader) {
+            ss << line << "\n";
+            isHeader = false;
+            continue;
+        }
+        DArray<std::string> tokens = split(line, '|');
+        if (tokens.size() >= 4) {
+            std::string status = trim(tokens[3]);
+            if (status != "1") {
+                ss << line << "\n";
+            }
+        }
+    }
+    in.close();
+
+    if (!atomicWriteFile(filePath, ss.str())) return false;
+    IndexManager::getInstance().rebuildSubjectIndex();
+    IndexManager::getInstance().saveSubjectIndex();
+    resetDeletedCount("subject");
+    return true;
+}
+
+bool StorageManager::compactClasses() {
+    std::string filePath = PathResolver::getFilePath("classes.txt");
+    std::ifstream in(filePath, std::ios::in | std::ios::binary);
+    if (!in.is_open()) return false;
+
+    std::ostringstream ss;
+    std::string line;
+    bool isHeader = true;
+    while (std::getline(in, line)) {
+        if (line.empty()) continue;
+        if (isHeader) {
+            ss << line << "\n";
+            isHeader = false;
+            continue;
+        }
+        DArray<std::string> tokens = split(line, '|');
+        if (tokens.size() >= 3) {
+            std::string status = trim(tokens[2]);
+            if (status != "1") {
+                ss << line << "\n";
+            }
+        }
+    }
+    in.close();
+
+    if (!atomicWriteFile(filePath, ss.str())) return false;
+    IndexManager::getInstance().rebuildClassIndex();
+    IndexManager::getInstance().saveClassIndex();
+    resetDeletedCount("class");
+    return true;
+}
+
+bool StorageManager::compactAll() {
+    bool sOk = compactStudents();
+    bool qOk = compactQuestions();
+    bool subOk = compactSubjects();
+    bool cOk = compactClasses();
+    resetDeletedCount("all");
+    return sOk && qOk && subOk && cOk;
 }

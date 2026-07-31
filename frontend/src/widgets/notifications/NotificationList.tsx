@@ -1,5 +1,5 @@
-import { Bell } from "lucide-react"
-import type { Notification } from "@/types"
+﻿import { Bell } from "lucide-react"
+import type { Notification } from "@/shared/types"
 import { NotificationItem } from "./NotificationItem"
 
 interface NotificationListProps {

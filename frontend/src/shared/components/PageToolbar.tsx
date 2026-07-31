@@ -1,8 +1,8 @@
-import { Search, Filter } from "lucide-react"
+﻿import { Search, Filter } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Select } from "@/components/ui/select"
+import { Input } from "@/shared/ui/input"
+import { Button } from "@/shared/ui/button"
+import { Select } from "@/shared/ui/select"
 
 interface ToolbarFilter {
   type: "select"

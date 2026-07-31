@@ -1,5 +1,5 @@
-import type { BackendClass } from '@/types/backend';
-import type { ClassItem } from '@/types';
+﻿import type { BackendClass } from '@/shared/types/backend';
+import type { ClassItem } from '@/shared/types';
 
 export class ClassMapper {
   /**

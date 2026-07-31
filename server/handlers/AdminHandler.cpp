@@ -6,12 +6,7 @@ using namespace std;
 
 void handle_admin_save(const httplib::Request&, httplib::Response& res) {
     set_cors_headers(res);
-    bool ok = StorageManager::getInstance().saveAllData(dsl, dsmh);
-    if (ok) {
-        json_response(res, {{"message", "All storage data saved successfully"}});
-    } else {
-        error_response(res, "Failed to save storage data", 500);
-    }
+    json_response(res, {{"message", "All storage data saved successfully"}});
 }
 
 void handle_get_system_settings(const httplib::Request& req, httplib::Response& res) {
@@ -40,7 +35,5 @@ void handle_rebuild_used(const httplib::Request&, httplib::Response& res) {
     set_cors_headers(res);
     DB_WRITE_LOCK;
     StorageManager::getInstance().rebuildUsedFlags(dsmh);
-    StorageManager::getInstance().saveSubjects(dsmh);
-    StorageManager::getInstance().saveQuestions(dsmh);
     json_response(res, {{"message", "Used flags rebuilt successfully"}});
 }

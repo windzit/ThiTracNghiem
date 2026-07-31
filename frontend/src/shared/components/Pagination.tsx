@@ -1,5 +1,5 @@
-import { ChevronLeft, ChevronRight } from "lucide-react"
-import { Select } from "@/components/ui/select"
+﻿import { ChevronLeft, ChevronRight } from "lucide-react"
+import { Select } from "@/shared/ui/select"
 
 interface PaginationProps {
   currentPage: number

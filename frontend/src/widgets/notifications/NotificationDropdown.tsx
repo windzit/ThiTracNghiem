@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from "react"
+﻿import { useState, useRef, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Bell, ArrowRight } from "lucide-react"
-import type { Notification } from "@/types"
+import type { Notification } from "@/shared/types"
 import { NotificationList } from "./NotificationList"
 
 interface NotificationDropdownProps {

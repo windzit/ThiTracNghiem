@@ -1,7 +1,7 @@
-import React, { useState } from "react"
-import { useConnection } from "@/context/ConnectionContext"
+﻿import React, { useState } from "react"
+import { useConnection } from "@/app/providers/ConnectionContext"
 import { WifiOff, RefreshCw } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/shared/ui/button"
 
 export const GlobalConnectionOverlay: React.FC = () => {
   const { isDisconnected, retryConnection } = useConnection()

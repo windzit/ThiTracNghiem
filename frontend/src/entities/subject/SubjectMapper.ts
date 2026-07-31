@@ -1,5 +1,5 @@
-import type { BackendSubject } from '@/types/backend';
-import type { Subject } from '@/types';
+﻿import type { BackendSubject } from '@/shared/types/backend';
+import type { Subject } from '@/shared/types';
 
 export class SubjectMapper {
   /**

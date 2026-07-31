@@ -1,4 +1,4 @@
-import type { Subject } from "@/types"
+﻿import type { Subject } from "@/shared/types"
 
 /**
  * Format subject display label: MAMH - TENMH

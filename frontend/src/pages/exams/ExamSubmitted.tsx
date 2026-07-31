@@ -1,8 +1,8 @@
-import { useNavigate, useLocation } from "react-router-dom"
+﻿import { useNavigate, useLocation } from "react-router-dom"
 import { CheckCircle2, Home, BookOpen, FileText, Clock, Calendar } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import StudentLayout from "@/components/layouts/StudentLayout"
+import { Button } from "@/shared/ui/button"
+import { Badge } from "@/shared/ui/badge"
+import StudentLayout from "@/widgets/layouts/StudentLayout"
 
 export default function ExamSubmitted() {
   const navigate = useNavigate()

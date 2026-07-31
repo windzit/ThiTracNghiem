@@ -1,6 +1,7 @@
 #include "StudentHandler.h"
 #include "../ServerContext.h"
 #include "StorageManager.h"
+#include "IndexManager.h"
 #include "StorageValidator.h"
 #include "StringNormalizer.h"
 
@@ -101,9 +102,9 @@ void handle_create_student(const httplib::Request& req, httplib::Response& res) 
     }
 
     if (lop->dssinhvien.insert(sv)) {
-        if (StorageManager::getInstance().saveStudents(dsl)) {
-            json_response(res, {{"masv",sv.MASV},{"ho",sv.HO},{"ten",sv.TEN},{"phai",sv.PHAI},{"malop",malop},{"examCount",0}}, 201);
-        } else { lop->dssinhvien.remove(masv); error_response(res, "Failed to save student", 500); }
+        int64_t outOffset = -1;
+        StorageManager::getInstance().appendStudent(sv, malop, outOffset);
+        json_response(res, {{"masv",sv.MASV},{"ho",sv.HO},{"ten",sv.TEN},{"phai",sv.PHAI},{"malop",malop},{"examCount",0}}, 201);
     } else { error_response(res, "Failed to create student", 500); }
 }
 
@@ -136,11 +137,13 @@ void handle_update_student(const httplib::Request& req, httplib::Response& res) 
         return;
     }
     if (foundLop->dssinhvien.update(masv, newData)) {
-        if (StorageManager::getInstance().saveStudents(dsl)) {
-            sv->dsdiemthi.load(sv->MASV);
-            int examCount = sv->dsdiemthi.count();
-            json_response(res, {{"masv",sv->MASV},{"ho",sv->HO},{"ten",sv->TEN},{"phai",sv->PHAI},{"malop",foundLop->MALOP},{"examCount",examCount}});
-        } else { error_response(res, "Failed to save student", 500); }
+        int64_t offset = -1;
+        if (IndexManager::getInstance().getStudentOffset(masv, offset)) {
+            StorageManager::getInstance().writeStudentAt(offset, newData, foundLop->MALOP);
+        }
+        sv->dsdiemthi.load(sv->MASV);
+        int examCount = sv->dsdiemthi.count();
+        json_response(res, {{"masv",sv->MASV},{"ho",sv->HO},{"ten",sv->TEN},{"phai",sv->PHAI},{"malop",foundLop->MALOP},{"examCount",examCount}});
     } else { error_response(res, "Failed to update student", 500); }
 }
 
@@ -167,11 +170,15 @@ void handle_delete_student(const httplib::Request& req, httplib::Response& res) 
         return;
     }
 
+    int64_t offset = -1;
+    bool hasOffset = IndexManager::getInstance().getStudentOffset(masv, offset);
+
     if (foundLop->dssinhvien.remove(masv)) {
-        if (StorageManager::getInstance().saveStudents(dsl)) {
-            res.status = 204;
+        if (hasOffset) {
+            StorageManager::getInstance().markStudentStatusAt(offset, STATUS_DELETED);
+            IndexManager::getInstance().removeStudentOffset(masv);
         }
-        else { error_response(res, "Failed to save after deletion", 500); }
+        res.status = 204;
     } else { error_response(res, "Failed to delete student", 500); }
 }
 
@@ -226,12 +233,19 @@ void handle_bulk_delete_students(const httplib::Request& req, httplib::Response&
         }
 
         if (sv && foundLop) {
+            int64_t offset = -1;
+            bool hasOffset = IndexManager::getInstance().getStudentOffset(masv, offset);
+
             if (foundLop->dssinhvien.remove(masv)) {
+                if (hasOffset) {
+                    StorageManager::getInstance().markStudentStatusAt(offset, STATUS_DELETED);
+                    IndexManager::getInstance().removeStudentOffset(masv);
+                }
                 deletedCount++;
             }
         }
     }
 
-    StorageManager::getInstance().saveStudents(dsl);
     json_response(res, {{"deletedCount", deletedCount}});
 }
+

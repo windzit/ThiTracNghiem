@@ -108,6 +108,14 @@ bool Question::setDeleted(int ID) {
     return true;
 }
 
+bool Question::restoreDeleted(int ID) {
+    // Restore soft deleted: set deleted=false, node remains in memory
+    dsCHT* node = find(ID);
+    if (!node) return false;
+    node->cauhoi.deleted = false;
+    return true;
+}
+
 bool Question::hasUsedQuestions() const {
     dsCHT* cur = root;
     while (cur) {

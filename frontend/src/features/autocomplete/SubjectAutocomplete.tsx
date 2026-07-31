@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect, useMemo } from "react"
+﻿import { useState, useRef, useEffect, useMemo } from "react"
 import { ChevronDown, Check, X } from "lucide-react"
-import type { Subject } from "@/types"
+import type { Subject } from "@/shared/types"
 
 interface SubjectAutocompleteProps {
   items: Subject[]

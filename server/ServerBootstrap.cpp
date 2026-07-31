@@ -60,6 +60,5 @@ int ServerBootstrap::run(int argc, char* argv[]) {
     svr.listen("0.0.0.0", 8080);
     std::cout << "[STARTUP LOG] [END] svr.listen(0.0.0.0, 8080)\n";
 
-    SaveAllData(dsl, dsmh);
     return 0;
 }

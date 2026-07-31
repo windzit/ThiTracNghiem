@@ -1,4 +1,4 @@
-import TeacherLayout from "@/components/layouts/TeacherLayout"
+﻿import TeacherLayout from "@/widgets/layouts/TeacherLayout"
 import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import {
@@ -12,17 +12,17 @@ import {
   X,
   CheckCircle2,
 } from "lucide-react"
-import { classService } from "@/services/classService"
-import { studentService } from "@/services/studentService"
-import type { ClassItem, Student } from "@/types"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { useToast } from "@/context/ToastContext"
-import { ApiErrorHandler } from "@/utils/ApiErrorHandler"
+import { classService } from "@/entities/class/classService"
+import { studentService } from "@/entities/student/studentService"
+import type { ClassItem, Student } from "@/shared/types"
+import { Button } from "@/shared/ui/button"
+import { Input } from "@/shared/ui/input"
+import { Label } from "@/shared/ui/label"
+import { Badge } from "@/shared/ui/badge"
+import { useToast } from "@/app/providers/ToastContext"
+import { ApiErrorHandler } from "@/shared/api/ApiErrorHandler"
 
-import { minDelay } from "@/utils/delay"
+import { minDelay } from "@/shared/lib/delay"
 
 import {
   validateClassName,
@@ -34,7 +34,7 @@ import {
   normalizeText,
   normalizePassword,
   VALIDATION_CONSTANTS,
-} from "@/utils/formValidation"
+} from "@/shared/lib/formValidation"
 
 type TabId = "info" | "students"
 

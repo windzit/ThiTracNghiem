@@ -1,7 +1,7 @@
-import { api } from '@/config/api'
-import type { Question } from '@/types'
-import type { BackendQuestion, BackendSubjectWithQuestions } from '@/types/backend'
-import { QuestionMapper } from '@/mappers/QuestionMapper'
+import { api } from '@/shared/api/api'
+import type { Question } from '@/shared/types'
+import type { BackendQuestion, BackendSubjectWithQuestions } from '@/shared/types/backend'
+import { QuestionMapper } from '@/entities/question/QuestionMapper'
 
 export interface QuestionFilters {
   subject?: string
@@ -42,7 +42,13 @@ export const questionService = {
 
       // Apply frontend filters
       if (filters.status && filters.status !== 'all') {
-        result = result.filter(q => q.status === filters.status)
+        if (filters.status === 'used') {
+          result = result.filter(q => q.used && !q.deleted)
+        } else if (filters.status === 'unused') {
+          result = result.filter(q => !q.used && !q.deleted)
+        } else if (filters.status === 'deleted') {
+          result = result.filter(q => q.deleted)
+        }
       }
       if (filters.search) {
         const lower = filters.search.toLowerCase()
@@ -90,7 +96,13 @@ export const questionService = {
     // Apply remaining filters
     if (filters) {
       if (filters.status && filters.status !== 'all') {
-        allQuestions = allQuestions.filter(q => q.status === filters.status)
+        if (filters.status === 'used') {
+          allQuestions = allQuestions.filter(q => q.used && !q.deleted)
+        } else if (filters.status === 'unused') {
+          allQuestions = allQuestions.filter(q => !q.used && !q.deleted)
+        } else if (filters.status === 'deleted') {
+          allQuestions = allQuestions.filter(q => q.deleted)
+        }
       }
       if (filters.search) {
         const lower = filters.search.toLowerCase()
@@ -210,6 +222,26 @@ export const questionService = {
       return {
         success: false,
         message: error?.response?.data?.message || 'Không thể xóa hàng loạt câu hỏi'
+      }
+    }
+  },
+
+  /**
+   * Khôi phục câu hỏi bị vô hiệu hóa
+   * Backend: PUT /api/questions/:id/restore?mamh=xxx
+   */
+  restoreQuestion: async (id: string, mamh?: string): Promise<{ success: boolean; message?: string }> => {
+    try {
+      let url = `/api/questions/${id}/restore`
+      if (mamh) {
+        url += `?mamh=${encodeURIComponent(mamh)}`
+      }
+      await api.put(url)
+      return { success: true }
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error?.response?.data?.message || 'Không thể khôi phục câu hỏi'
       }
     }
   },

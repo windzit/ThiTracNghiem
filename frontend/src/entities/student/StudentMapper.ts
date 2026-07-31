@@ -1,5 +1,5 @@
-import type { BackendStudent } from '@/types/backend';
-import type { Student } from '@/types';
+﻿import type { BackendStudent } from '@/shared/types/backend';
+import type { Student } from '@/shared/types';
 
 export class StudentMapper {
   /**

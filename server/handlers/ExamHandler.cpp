@@ -102,8 +102,6 @@ void handle_exam_start(const httplib::Request& req, httplib::Response& res) {
     session.lastServerActivityAt = std::time(nullptr);
     saveExamSession(session);
     StorageManager::getInstance().rebuildUsedFlags(dsmh);
-    StorageManager::getInstance().saveSubjects(dsmh);
-    StorageManager::getInstance().saveQuestions(dsmh);
 
     json_response(res, {
         {"questions", qs},
@@ -269,8 +267,6 @@ void handle_exam_submit(const httplib::Request& req, httplib::Response& res) {
     removeExamSession(masv);
 
     StorageManager::getInstance().rebuildUsedFlags(dsmh);
-    StorageManager::getInstance().saveSubjects(dsmh);
-    StorageManager::getInstance().saveQuestions(dsmh);
 
     json_response(res, {{"soDung",soDung},{"total",total},
         {"diem",diem},{"saved",saved}});

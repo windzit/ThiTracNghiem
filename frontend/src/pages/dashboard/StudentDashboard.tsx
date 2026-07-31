@@ -1,4 +1,4 @@
-import StudentLayout from "@/components/layouts/StudentLayout"
+﻿import StudentLayout from "@/widgets/layouts/StudentLayout"
 import { useNavigate } from "react-router-dom"
 import {
   ClipboardList,
@@ -11,12 +11,12 @@ import {
   Award,
 } from "lucide-react"
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts"
-import { authService } from "@/services/authService"
-import { resultService, type StudentStats } from "@/services/resultService"
-import { examService, type ResumeExamResponse } from "@/services/examService"
+import { authService } from "@/entities/session/authService"
+import { resultService, type StudentStats } from "@/entities/exam/resultService"
+import { examService, type ResumeExamResponse } from "@/entities/exam/examService"
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { EmptyState } from "@/components/shared"
+import { Button } from "@/shared/ui/button"
+import { EmptyState } from "@/shared/components"
 
 const quickActions = [
   { icon: ClipboardList, iconBg: "bg-red-50", iconColor: "text-[#D9272B]", title: "Vào thi ngay", subtitle: "Tham gia kiểm tra kiến thức", path: "/student/take-exam" },

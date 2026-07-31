@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react"
+﻿import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { FileText, Eye, CheckCircle2, Clock, AlertTriangle, BookOpen } from "lucide-react"
-import StudentLayout from "@/components/layouts/StudentLayout"
-import { Button } from "@/components/ui/button"
-import { authService } from "@/services/authService"
-import { reportService } from "@/services/reportService"
-import { subjectService } from "@/services/subjectService"
+import StudentLayout from "@/widgets/layouts/StudentLayout"
+import { Button } from "@/shared/ui/button"
+import { authService } from "@/entities/session/authService"
+import { reportService } from "@/entities/report/reportService"
+import { subjectService } from "@/entities/subject/subjectService"
 
 interface StudentExamResult {
   mamh: string

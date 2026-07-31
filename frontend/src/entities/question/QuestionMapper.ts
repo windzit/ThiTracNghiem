@@ -1,6 +1,6 @@
-import type { BackendQuestion } from '@/types/backend';
-import type { Question } from '@/types';
-import { Difficulty } from '@/data/difficulty';
+﻿import type { BackendQuestion } from '@/shared/types/backend';
+import type { Question } from '@/shared/types';
+import { Difficulty } from '@/shared/config/difficulty';
 
 export class QuestionMapper {
   /**

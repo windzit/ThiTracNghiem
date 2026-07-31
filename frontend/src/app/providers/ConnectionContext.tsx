@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from "react"
-import { setNetworkErrorCallback, api } from "@/config/api"
+﻿import React, { createContext, useContext, useState, useEffect } from "react"
+import { setNetworkErrorCallback, api } from "@/shared/api/api"
 
 interface ConnectionContextType {
   isDisconnected: boolean

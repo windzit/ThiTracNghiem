@@ -1,7 +1,7 @@
-import { api } from '@/config/api'
-import type { Subject } from '@/types'
-import type { BackendSubject, BackendSubjectWithQuestions } from '@/types/backend'
-import { SubjectMapper } from '@/mappers/SubjectMapper'
+﻿import { api } from '@/shared/api/api'
+import type { Subject } from '@/shared/types'
+import type { BackendSubject, BackendSubjectWithQuestions } from '@/shared/types/backend'
+import { SubjectMapper } from '@/entities/subject/SubjectMapper'
 
 export const subjectService = {
   getAll: async (): Promise<Subject[]> => {

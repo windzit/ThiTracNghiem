@@ -1,4 +1,4 @@
-import { useNavigate, useLocation } from "react-router-dom"
+﻿import { useNavigate, useLocation } from "react-router-dom"
 import { useState, useEffect, useRef } from "react"
 import {
   Home,
@@ -10,9 +10,9 @@ import {
   Menu,
   Lock,
 } from "lucide-react"
-import { NotificationDropdown } from "@/components/shared/NotificationDropdown"
-import { authService } from "@/services/authService"
-import { examService } from "@/services/examService"
+import { NotificationDropdown } from "@/widgets/notifications/NotificationDropdown"
+import { authService } from "@/entities/session/authService"
+import { examService } from "@/entities/exam/examService"
 
 interface StudentLayoutProps {
   children: React.ReactNode

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react"
+﻿import { useState, useEffect, useCallback, useRef } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import {
   Clock,
@@ -18,15 +18,15 @@ import {
   Lock,
   RefreshCw,
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { authService } from "@/services/authService"
-import { examService } from "@/services/examService"
-import { examSessionService } from "@/services/examSessionService"
-import { useConnection } from "@/context/ConnectionContext"
+import { Button } from "@/shared/ui/button"
+import { Badge } from "@/shared/ui/badge"
+import { RadioGroup, RadioGroupItem } from "@/shared/ui/radio-group"
+import { Label } from "@/shared/ui/label"
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
+import { authService } from "@/entities/session/authService"
+import { examService } from "@/entities/exam/examService"
+import { examSessionService } from "@/entities/exam/examSessionService"
+import { useConnection } from "@/app/providers/ConnectionContext"
 
 const MAX_VIOLATIONS = 4
 

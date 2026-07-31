@@ -1,4 +1,4 @@
-import TeacherLayout from "@/components/layouts/TeacherLayout"
+﻿import TeacherLayout from "@/widgets/layouts/TeacherLayout"
 import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import {
@@ -14,17 +14,17 @@ import {
   Mail,
   Trash2,
 } from "lucide-react"
-import { studentService } from "@/services/studentService"
-import { classService } from "@/services/classService"
-import { reportService } from "@/services/reportService"
-import type { Student, ClassItem } from "@/types"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Drawer, EmptyState } from "@/components/shared"
-import { validateStudentName } from "@/utils/formValidation"
-import { useToast } from "@/context/ToastContext"
-import { ApiErrorHandler } from "@/utils/ApiErrorHandler"
+import { studentService } from "@/entities/student/studentService"
+import { classService } from "@/entities/class/classService"
+import { reportService } from "@/entities/report/reportService"
+import type { Student, ClassItem } from "@/shared/types"
+import { Button } from "@/shared/ui/button"
+import { Input } from "@/shared/ui/input"
+import { Label } from "@/shared/ui/label"
+import { Drawer, EmptyState } from "@/shared/components"
+import { validateStudentName } from "@/shared/lib/formValidation"
+import { useToast } from "@/app/providers/ToastContext"
+import { ApiErrorHandler } from "@/shared/api/ApiErrorHandler"
 
 export default function StudentDetail() {
   const { id } = useParams<{ id: string }>()

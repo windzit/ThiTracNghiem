@@ -2,6 +2,7 @@
 #include "../ServerContext.h"
 #include <fstream>
 #include "StorageManager.h"
+#include "IndexManager.h"
 #include "PathResolver.h"
 #include "Utils.h"
 
@@ -34,48 +35,51 @@ void handle_report_exam(const httplib::Request& req, httplib::Response& res) {
     NodeMH* node = dsmh.find(mamh.c_str());
     if (!node) { error_response(res, "Subject not found", 404); return; }
 
-    string historyPath = PathResolver::getFilePath("exam_history.txt");
-    ifstream histFile(historyPath);
     DArray<int> historyQIds;
     DArray<string> historyAnswers;
     bool foundHistory = false;
-    
-    if (histFile.is_open()) {
-        string line;
-        bool isHeader = true;
-        while (getline(histFile, line)) {
-            while (!line.empty() && (line.back() == '\r' || line.back() == '\n' || line.back() == ' ')) line.pop_back();
-            if (line.empty()) continue;
-            if (isHeader) { isHeader = false; continue; }
-            
-            DArray<string> tokens = split(line, '|');
-            if (tokens.size() >= 6) {
-                string hMasv = trim(tokens[0]);
-                string hMamh = trim(tokens[1]);
-                if (hMasv == masv && hMamh == mamh) {
-                    foundHistory = true;
-                    historyQIds.clear();
-                    historyAnswers.clear();
-                    
-                    DArray<string> qIdTokens = split(tokens[4], ',');
-                    for (int qIdx = 0; qIdx < qIdTokens.size(); qIdx++) {
-                        string qidStr = qIdTokens[qIdx];
-                        if (!trim(qidStr).empty()) {
-                            historyQIds.push_back(stoi(trim(qidStr)));
+
+    DArray<int64_t> offsets;
+    if (IndexManager::getInstance().getHistoryOffsets(masv, offsets)) {
+        string historyPath = PathResolver::getFilePath("exam_history.txt");
+        ifstream histFile(historyPath, std::ios::in | std::ios::binary);
+        if (histFile.is_open()) {
+            for (int i = 0; i < offsets.size(); i++) {
+                histFile.seekg(offsets[i]);
+                string line;
+                if (getline(histFile, line)) {
+                    while (!line.empty() && (line.back() == '\r' || line.back() == '\n' || line.back() == ' ')) line.pop_back();
+                    DArray<string> tokens = split(line, '|');
+                    if (tokens.size() >= 6) {
+                        string hMasv = trim(tokens[0]);
+                        string hMamh = trim(tokens[1]);
+                        if (hMasv == masv && hMamh == mamh) {
+                            foundHistory = true;
+                            historyQIds.clear();
+                            historyAnswers.clear();
+
+                            DArray<string> qIdTokens = split(tokens[4], ',');
+                            for (int qIdx = 0; qIdx < qIdTokens.size(); qIdx++) {
+                                string qidStr = qIdTokens[qIdx];
+                                if (!trim(qidStr).empty()) {
+                                    historyQIds.push_back(stoi(trim(qidStr)));
+                                }
+                            }
+
+                            DArray<string> ansTokens = split(tokens[5], ',');
+                            for (int aIdx = 0; aIdx < ansTokens.size(); aIdx++) {
+                                string ansStr = ansTokens[aIdx];
+                                string a = trim(ansStr);
+                                if (a == "-") a = "";
+                                historyAnswers.push_back(a);
+                            }
+                            break;
                         }
-                    }
-                    
-                    DArray<string> ansTokens = split(tokens[5], ',');
-                    for (int aIdx = 0; aIdx < ansTokens.size(); aIdx++) {
-                        string ansStr = ansTokens[aIdx];
-                        string a = trim(ansStr);
-                        if (a == "-") a = "";
-                        historyAnswers.push_back(a);
                     }
                 }
             }
+            histFile.close();
         }
-        histFile.close();
     }
 
     json questions = json::array();
@@ -193,8 +197,6 @@ void handle_delete_score(const httplib::Request& req, httplib::Response& res) {
     if (removed) {
         StorageManager::getInstance().saveScores(dsl);
         StorageManager::getInstance().rebuildUsedFlags(dsmh);
-        StorageManager::getInstance().saveSubjects(dsmh);
-        StorageManager::getInstance().saveQuestions(dsmh);
         json_response(res, {{"message","Score deleted successfully"},{"masv",masv},{"mamh",mamh}});
     } else {
         error_response(res, "Score not found for this subject", 404);

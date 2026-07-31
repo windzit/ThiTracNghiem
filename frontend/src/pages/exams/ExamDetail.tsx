@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+﻿import { useState, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import {
   Target,
@@ -11,12 +11,12 @@ import {
   Award,
   HelpCircle,
 } from "lucide-react"
-import StudentLayout from "@/components/layouts/StudentLayout"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { authService } from "@/services/authService"
-import { reportService, type ExamReportResponse } from "@/services/reportService"
+import StudentLayout from "@/widgets/layouts/StudentLayout"
+import { Badge } from "@/shared/ui/badge"
+import { Button } from "@/shared/ui/button"
+import { Card, CardContent } from "@/shared/ui/card"
+import { authService } from "@/entities/session/authService"
+import { reportService, type ExamReportResponse } from "@/entities/report/reportService"
 
 export default function ExamDetail() {
   const navigate = useNavigate()

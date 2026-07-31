@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+﻿import { useState, useEffect, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   Search,
@@ -14,17 +14,17 @@ import {
   X,
   BookOpen,
 } from "lucide-react"
-import TeacherLayout from "@/components/layouts/TeacherLayout"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select } from "@/components/ui/select"
-import { StatCard, Pagination, SubjectAutocomplete } from "@/components/shared"
-import { useToast } from "@/context/ToastContext"
-import { classService } from "@/services/classService"
-import { subjectService } from "@/services/subjectService"
-import { reportService, type ScoreboardStudent } from "@/services/reportService"
-import type { ClassItem, Subject } from "@/types"
-import { formatSubjectLabel } from "@/utils/formatSubject"
+import TeacherLayout from "@/widgets/layouts/TeacherLayout"
+import { Button } from "@/shared/ui/button"
+import { Input } from "@/shared/ui/input"
+import { Select } from "@/shared/ui/select"
+import { StatCard, Pagination, SubjectAutocomplete } from "@/shared/components"
+import { useToast } from "@/app/providers/ToastContext"
+import { classService } from "@/entities/class/classService"
+import { subjectService } from "@/entities/subject/subjectService"
+import { reportService, type ScoreboardStudent } from "@/entities/report/reportService"
+import type { ClassItem, Subject } from "@/shared/types"
+import { formatSubjectLabel } from "@/shared/lib/formatSubject"
 
 export default function Gradebook() {
   const navigate = useNavigate()

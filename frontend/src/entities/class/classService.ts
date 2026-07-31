@@ -1,7 +1,7 @@
-import { api } from '@/config/api'
-import type { ClassItem } from '@/types'
-import type { BackendClass } from '@/types/backend'
-import { ClassMapper } from '@/mappers/ClassMapper'
+﻿import { api } from '@/shared/api/api'
+import type { ClassItem } from '@/shared/types'
+import type { BackendClass } from '@/shared/types/backend'
+import { ClassMapper } from '@/entities/class/ClassMapper'
 
 export const classService = {
   getAll: async (): Promise<ClassItem[]> => {

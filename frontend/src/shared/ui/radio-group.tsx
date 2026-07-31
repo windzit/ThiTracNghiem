@@ -1,7 +1,7 @@
-import * as React from "react"
+﻿import * as React from "react"
 import { Root, Item, Indicator } from "@radix-ui/react-radio-group"
 import { Circle } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn } from "@/shared/lib/utils"
 
 const RadioGroup = React.forwardRef<
   React.ElementRef<typeof Root>,

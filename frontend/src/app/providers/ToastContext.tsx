@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useCallback, useRef } from "react"
+﻿import React, { createContext, useContext, useState, useCallback, useRef } from "react"
 import { CheckCircle2, AlertTriangle, AlertCircle, WifiOff, X, Loader2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/shared/ui/button"
 
 export type ToastType = "success" | "warning" | "error" | "network"
 

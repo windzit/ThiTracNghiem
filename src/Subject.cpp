@@ -121,11 +121,7 @@ bool Subject::_remove(NodeMH*& node, const char MAMH[15]) {
 }
 
 bool Subject::remove(const char MAMH[15]) {
-    bool ok = _remove(root, MAMH);
-    if (ok) {
-        save();
-    }
-    return ok;
+    return _remove(root, MAMH);
 }
 
 bool Subject::update(const char MAMH[15], const std::string& newTENMH) {

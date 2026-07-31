@@ -1,5 +1,0 @@
-export * from "@/shared/components"
-export { SubjectAutocomplete } from "@/features/autocomplete/SubjectAutocomplete"
-export { NotificationDropdown } from "@/widgets/notifications/NotificationDropdown"
-export { NotificationItem } from "@/widgets/notifications/NotificationItem"
-export { NotificationList } from "@/widgets/notifications/NotificationList"

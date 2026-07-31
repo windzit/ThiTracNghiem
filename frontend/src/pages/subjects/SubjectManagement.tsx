@@ -6,24 +6,26 @@ import {
   Pencil,
   Trash2,
   BookOpen,
+  ArrowUpDown,
 } from "lucide-react"
-import TeacherLayout from "@/components/layouts/TeacherLayout"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { subjectService } from "@/services/subjectService"
-import type { Subject } from "@/types"
-import { StatCard, Pagination, Drawer, SubjectAutocomplete } from "@/components/shared"
-import { useToast } from "@/context/ToastContext"
-import { ApiErrorHandler } from "@/utils/ApiErrorHandler"
-import { minDelay } from "@/utils/delay"
+import TeacherLayout from "@/widgets/layouts/TeacherLayout"
+import { Button } from "@/shared/ui/button"
+import { Input } from "@/shared/ui/input"
+import { Select } from "@/shared/ui/select"
+import { Label } from "@/shared/ui/label"
+import { subjectService } from "@/entities/subject/subjectService"
+import type { Subject } from "@/shared/types"
+import { StatCard, Pagination, Drawer, SubjectAutocomplete } from "@/shared/components"
+import { useToast } from "@/app/providers/ToastContext"
+import { ApiErrorHandler } from "@/shared/api/ApiErrorHandler"
+import { minDelay } from "@/shared/lib/delay"
 import {
   validateSubjectCode,
   validateSubjectName,
   normalizeIdentifier,
   normalizeText,
   VALIDATION_CONSTANTS,
-} from "@/utils/formValidation"
+} from "@/shared/lib/formValidation"
 
 type DrawerMode = "create" | "edit"
 
@@ -31,6 +33,7 @@ export default function SubjectManagement() {
   const navigate = useNavigate()
   const { showSuccess, showError, confirm } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
+  const [sortOrder, setSortOrder] = useState<"none" | "questions-asc" | "questions-desc">("none")
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [showDrawer, setShowDrawer] = useState(false)
@@ -66,6 +69,12 @@ export default function SubjectManagement() {
       s.name.toLowerCase().includes(searchTerm.toLowerCase())
     )
   })
+
+  if (sortOrder === "questions-asc") {
+    filteredSubjects.sort((a, b) => (a.questionCount || 0) - (b.questionCount || 0))
+  } else if (sortOrder === "questions-desc") {
+    filteredSubjects.sort((a, b) => (b.questionCount || 0) - (a.questionCount || 0))
+  }
 
   const startIndex = (currentPage - 1) * itemsPerPage
   const paginatedSubjects = filteredSubjects.slice(startIndex, startIndex + itemsPerPage)
@@ -292,6 +301,19 @@ export default function SubjectManagement() {
               placeholder="Tìm theo mã môn, tên môn..."
             />
           </div>
+          <Select
+            className="w-[220px] h-10"
+            value={sortOrder}
+            onChange={(e) => {
+              setSortOrder(e.target.value as any)
+              setCurrentPage(1)
+            }}
+            options={[
+              { value: "none", label: "Sắp xếp: Mặc định" },
+              { value: "questions-asc", label: "Số câu hỏi: Tăng dần ↑" },
+              { value: "questions-desc", label: "Số câu hỏi: Giảm dần ↓" },
+            ]}
+          />
         </div>
 
         {/* Table */}
@@ -310,7 +332,22 @@ export default function SubjectManagement() {
                   </th>
                   <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">Mã môn học</th>
                   <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">Tên môn học</th>
-                  <th className="text-center px-4 py-3 text-sm font-semibold text-gray-700">Số câu hỏi</th>
+                  <th
+                    className="text-center px-4 py-3 text-sm font-semibold text-gray-700 cursor-pointer select-none hover:text-[#D9272B] transition-colors"
+                    onClick={() => {
+                      if (sortOrder === "questions-asc") setSortOrder("questions-desc")
+                      else setSortOrder("questions-asc")
+                      setCurrentPage(1)
+                    }}
+                    title="Bấm để đổi hướng sắp xếp số câu hỏi"
+                  >
+                    <div className="flex items-center justify-center gap-1">
+                      <span>Số câu hỏi</span>
+                      <ArrowUpDown className="h-3.5 w-3.5" />
+                      {sortOrder === "questions-asc" && <span className="text-[#D9272B] font-bold">↑</span>}
+                      {sortOrder === "questions-desc" && <span className="text-[#D9272B] font-bold">↓</span>}
+                    </div>
+                  </th>
                   <th className="text-center px-4 py-3 text-sm font-semibold text-gray-700 w-28">Thao tác</th>
                 </tr>
               </thead>

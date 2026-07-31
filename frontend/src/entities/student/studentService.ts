@@ -1,7 +1,7 @@
-import { api } from '@/config/api'
-import type { Student } from '@/types'
-import type { BackendStudent } from '@/types/backend'
-import { StudentMapper } from '@/mappers/StudentMapper'
+﻿import { api } from '@/shared/api/api'
+import type { Student } from '@/shared/types'
+import type { BackendStudent } from '@/shared/types/backend'
+import { StudentMapper } from '@/entities/student/StudentMapper'
 
 export const studentService = {
   getAll: async (): Promise<Student[]> => {

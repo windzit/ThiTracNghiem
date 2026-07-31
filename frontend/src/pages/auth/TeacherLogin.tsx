@@ -1,7 +1,7 @@
-import { Button, Input } from "@/components/ui"
+﻿import { Button, Input } from "@/shared/ui"
 import { useNavigate } from "react-router-dom"
 import { useState } from "react"
-import { authService } from "@/services/authService"
+import { authService } from "@/entities/session/authService"
 import {
   ArrowLeft,
   UserCog,

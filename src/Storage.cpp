@@ -2,11 +2,73 @@
 #include "../include/StorageManager.h"
 #include "../include/PathResolver.h"
 #include "../include/DArray.h"
+#include "../include/IndexManager.h"
+#include "../include/CommonTypes.h"
+#include "../include/Utils.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <chrono>
 #include <iomanip>
+
+static std::string makeProgressBar(int current, int max, int width = 20) {
+    if (max <= 0) max = 1;
+    double ratio = (double)current / (double)max;
+    if (ratio > 1.0) ratio = 1.0;
+    if (ratio < 0.0) ratio = 0.0;
+    int filled = (int)(ratio * width);
+    std::string bar = "[";
+    for (int i = 0; i < width; i++) {
+        if (i < filled) bar += "=";
+        else bar += "-";
+    }
+    bar += "]";
+    return bar;
+}
+
+static void printCompactionProgressAudit() {
+    int delClass = StorageManager::getInstance().getDeletedCount("class");
+    int maxClass = StorageConfig::CLASS_COMPACT_COUNT;
+    int pctClass = (int)((double)delClass / maxClass * 100);
+    if (pctClass > 100) pctClass = 100;
+
+    int delStudent = StorageManager::getInstance().getDeletedCount("student");
+    int maxStudent = StorageConfig::STUDENT_COMPACT_COUNT;
+    int pctStudent = (int)((double)delStudent / maxStudent * 100);
+    if (pctStudent > 100) pctStudent = 100;
+
+    int delSubject = StorageManager::getInstance().getDeletedCount("subject");
+    int maxSubject = StorageConfig::SUBJECT_COMPACT_COUNT;
+    int pctSubject = (int)((double)delSubject / maxSubject * 100);
+    if (pctSubject > 100) pctSubject = 100;
+
+    int delQuestion = StorageManager::getInstance().getDeletedCount("question");
+    int maxQuestion = StorageConfig::QUESTION_COMPACT_COUNT;
+    int pctQuestion = (int)((double)delQuestion / maxQuestion * 100);
+    if (pctQuestion > 100) pctQuestion = 100;
+
+    std::cout << "----------------------------------------------------------------------\n";
+    std::cout << "STORAGE COMPACTION THRESHOLD AUDIT (Soft-Deleted vs Threshold)\n";
+    std::cout << "----------------------------------------------------------------------\n";
+    std::cout << "  [*] Classes   : " << makeProgressBar(delClass, maxClass) << " "
+              << std::setw(3) << pctClass << "% (" << delClass << " / " << maxClass << " deleted)\n";
+    std::cout << "  [*] Students  : " << makeProgressBar(delStudent, maxStudent) << " "
+              << std::setw(3) << pctStudent << "% (" << delStudent << " / " << maxStudent << " deleted)\n";
+    std::cout << "  [*] Subjects  : " << makeProgressBar(delSubject, maxSubject) << " "
+              << std::setw(3) << pctSubject << "% (" << delSubject << " / " << maxSubject << " deleted)\n";
+    std::cout << "  [*] Questions : " << makeProgressBar(delQuestion, maxQuestion) << " "
+              << std::setw(3) << pctQuestion << "% (" << delQuestion << " / " << maxQuestion << " deleted)\n";
+    std::cout << "  --------------------------------------------------------------------\n";
+
+    bool thresholdReached = (delClass >= maxClass || delStudent >= maxStudent ||
+                             delSubject >= maxSubject || delQuestion >= maxQuestion);
+
+    if (thresholdReached) {
+        std::cout << "  [*] Compaction Status: THRESHOLD REACHED -> Auto-Compaction Executed.\n\n";
+    } else {
+        std::cout << "  [*] Compaction Status: OK (Storage healthy, no compaction required)\n\n";
+    }
+}
 
 static void countQuestionsRecursive(NodeMH* node, int& count) {
     if (!node) return;
@@ -67,9 +129,7 @@ void PrintStartupReport(Class& dsl, Subject& dsmh, long long totalLoadingTimeMs,
     DArray<std::string> subjectList;
     collectSubjectsRecursive(dsmh.getRoot(), subjectList);
 
-    std::cout << "\n======================================================================\n";
-    std::cout << "                  PTIT CBT SERVER STARTUP REPORT                      \n";
-    std::cout << "======================================================================\n";
+    IndexManager::getInstance().auditAndLoadIndexes();
     std::cout << "Loading storage from disk...\n\n";
 
     std::cout << "  [OK] Classes        : " << formatNumber(classCount) << "\n";
@@ -85,13 +145,39 @@ void PrintStartupReport(Class& dsl, Subject& dsmh, long long totalLoadingTimeMs,
     std::cout << "  [*] Loading Classes & Students : " << classLoadMs << " ms\n";
     std::cout << "  [*] Loading Subjects & Questions: " << subjectLoadMs << " ms\n";
     std::cout << "  -----------------------------------------\n";
-    std::cout << "  [*] Total Loading Time          : " << totalLoadingTimeMs << " ms\n\n";
+    printCompactionProgressAudit();
 
     std::cout << "----------------------------------------------------------------------\n";
     std::cout << "STORAGE CONSISTENCY AUDIT\n";
     std::cout << "----------------------------------------------------------------------\n";
 
-    // Audit 1: students.txt consistency (flat file vs RAM)
+    // Audit 1: classes.txt consistency (flat file vs RAM)
+    {
+        std::ifstream file(PathResolver::getFilePath("classes.txt"));
+        if (!file.is_open()) {
+            std::cout << "  [WARNING] Missing flat file: classes.txt\n";
+        } else {
+            std::string line;
+            int fileClassCount = 0;
+            bool isHeader = true;
+            while (std::getline(file, line)) {
+                std::string trimmed = trim(line);
+                if (trimmed.empty()) continue;
+                if (isHeader) { isHeader = false; continue; }
+                DArray<std::string> tokens = split(trimmed, '|');
+                if (tokens.size() >= 3 && trim(tokens[2]) == "1") continue;
+                fileClassCount++;
+            }
+            file.close();
+            if (fileClassCount == classCount) {
+                std::cout << "  [OK] classes.txt consistent: " << fileClassCount << " active records match RAM.\n";
+            } else {
+                std::cout << "  [WARNING] classes.txt mismatch: file active=" << fileClassCount << " vs RAM=" << classCount << "\n";
+            }
+        }
+    }
+
+    // Audit 2: students.txt consistency (flat file vs RAM)
     {
         std::ifstream file(PathResolver::getFilePath("students.txt"));
         if (!file.is_open()) {
@@ -102,24 +188,48 @@ void PrintStartupReport(Class& dsl, Subject& dsmh, long long totalLoadingTimeMs,
             bool isHeader = true;
             while (std::getline(file, line)) {
                 std::string trimmed = line;
-                // trim trailing whitespace/CR
-                while (!trimmed.empty() && (trimmed.back() == '\r' || trimmed.back() == ' ' || trimmed.back() == '\t')) {
-                    trimmed.pop_back();
-                }
                 if (trimmed.empty()) continue;
                 if (isHeader) { isHeader = false; continue; }
+                DArray<std::string> tokens = split(trimmed, '|');
+                if (tokens.size() >= 7 && trim(tokens[6]) == "1") continue;
                 fileStudentCount++;
             }
             file.close();
             if (fileStudentCount == studentCount) {
-                std::cout << "  [OK] students.txt consistent: " << fileStudentCount << " records match RAM.\n";
+                std::cout << "  [OK] students.txt consistent: " << fileStudentCount << " active records match RAM.\n";
             } else {
-                std::cout << "  [WARNING] students.txt mismatch: file=" << fileStudentCount << " vs RAM=" << studentCount << "\n";
+                std::cout << "  [WARNING] students.txt mismatch: file active=" << fileStudentCount << " vs RAM=" << studentCount << "\n";
             }
         }
     }
 
-    // Audit 2: questions.txt consistency (flat file vs RAM)
+    // Audit 3: subjects.txt consistency (flat file vs RAM)
+    {
+        std::ifstream file(PathResolver::getFilePath("subjects.txt"));
+        if (!file.is_open()) {
+            std::cout << "  [WARNING] Missing flat file: subjects.txt\n";
+        } else {
+            std::string line;
+            int fileSubjectCount = 0;
+            bool isHeader = true;
+            while (std::getline(file, line)) {
+                std::string trimmed = trim(line);
+                if (trimmed.empty()) continue;
+                if (isHeader) { isHeader = false; continue; }
+                DArray<std::string> tokens = split(trimmed, '|');
+                if (tokens.size() >= 4 && trim(tokens[3]) == "1") continue;
+                fileSubjectCount++;
+            }
+            file.close();
+            if (fileSubjectCount == subjectCount) {
+                std::cout << "  [OK] subjects.txt consistent: " << fileSubjectCount << " active records match RAM.\n";
+            } else {
+                std::cout << "  [WARNING] subjects.txt mismatch: file active=" << fileSubjectCount << " vs RAM=" << subjectCount << "\n";
+            }
+        }
+    }
+
+    // Audit 4: questions.txt consistency (flat file vs RAM)
     {
         std::ifstream file(PathResolver::getFilePath("questions.txt"));
         if (!file.is_open()) {
@@ -130,18 +240,20 @@ void PrintStartupReport(Class& dsl, Subject& dsmh, long long totalLoadingTimeMs,
             bool isHeader = true;
             while (std::getline(file, line)) {
                 std::string trimmed = line;
-                while (!trimmed.empty() && (trimmed.back() == '\r' || trimmed.back() == ' ' || trimmed.back() == '\t')) {
-                    trimmed.pop_back();
-                }
                 if (trimmed.empty()) continue;
                 if (isHeader) { isHeader = false; continue; }
+
+                DArray<std::string> tokens = split(trimmed, '|');
+                if (tokens.size() >= 9 && trim(tokens[8]) == "1") continue;
+                std::string mamh = trim(tokens[0]);
+                if (!dsmh.find(mamh.c_str())) continue; // Skip questions belonging to deleted subjects
                 fileQuestionCount++;
             }
             file.close();
             if (fileQuestionCount == questionCount) {
-                std::cout << "  [OK] questions.txt consistent: " << fileQuestionCount << " records match RAM.\n";
+                std::cout << "  [OK] questions.txt consistent: " << fileQuestionCount << " active records match RAM.\n";
             } else {
-                std::cout << "  [WARNING] questions.txt mismatch: file=" << fileQuestionCount << " vs RAM=" << questionCount << "\n";
+                std::cout << "  [WARNING] questions.txt mismatch: file active=" << fileQuestionCount << " vs RAM=" << questionCount << "\n";
             }
         }
     }

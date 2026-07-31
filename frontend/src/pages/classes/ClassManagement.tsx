@@ -1,4 +1,4 @@
-import TeacherLayout from "@/components/layouts/TeacherLayout"
+import TeacherLayout from "@/widgets/layouts/TeacherLayout"
 import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import {
@@ -9,16 +9,18 @@ import {
   Trash2,
   Users,
   GraduationCap,
+  ArrowUpDown,
 } from "lucide-react"
-import { classService } from "@/services/classService"
-import type { ClassItem } from "@/types"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { StatCard, Pagination, Drawer } from "@/components/shared"
-import { useToast } from "@/context/ToastContext"
-import { ApiErrorHandler } from "@/utils/ApiErrorHandler"
-import { minDelay } from "@/utils/delay"
+import { classService } from "@/entities/class/classService"
+import type { ClassItem } from "@/shared/types"
+import { Button } from "@/shared/ui/button"
+import { Input } from "@/shared/ui/input"
+import { Select } from "@/shared/ui/select"
+import { Label } from "@/shared/ui/label"
+import { StatCard, Pagination, Drawer } from "@/shared/components"
+import { useToast } from "@/app/providers/ToastContext"
+import { ApiErrorHandler } from "@/shared/api/ApiErrorHandler"
+import { minDelay } from "@/shared/lib/delay"
 
 import {
   validateClassCode,
@@ -26,7 +28,7 @@ import {
   normalizeIdentifier,
   normalizeText,
   VALIDATION_CONSTANTS,
-} from "@/utils/formValidation"
+} from "@/shared/lib/formValidation"
 
 type DrawerMode = "create" | "edit"
 
@@ -35,6 +37,7 @@ export default function ClassManagement() {
   const { showSuccess, showError, showWarning, confirm } = useToast()
   const editingInitialRef = useRef<{ name: string } | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
+  const [sortOrder, setSortOrder] = useState<"none" | "students-asc" | "students-desc">("none")
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(10)
   const [classes, setClasses] = useState<ClassItem[]>([])
@@ -67,6 +70,12 @@ export default function ClassManagement() {
   const filteredClasses = classes.filter(
     (c) => c.id.toLowerCase().includes(searchTerm.toLowerCase()) || c.name.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  if (sortOrder === "students-asc") {
+    filteredClasses.sort((a, b) => (a.total || 0) - (b.total || 0))
+  } else if (sortOrder === "students-desc") {
+    filteredClasses.sort((a, b) => (b.total || 0) - (a.total || 0))
+  }
 
   const paginatedClasses = filteredClasses.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
@@ -282,7 +291,7 @@ export default function ClassManagement() {
         </div>
 
         {/* Toolbar */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between">
+        <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between gap-3">
           <div className="relative w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
@@ -296,6 +305,19 @@ export default function ClassManagement() {
               className="w-full h-10 pl-10 pr-4 rounded-lg border border-gray-200 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#D9272B]/20 focus:border-[#D9272B]"
             />
           </div>
+          <Select
+            className="w-[220px] h-10"
+            value={sortOrder}
+            onChange={(e) => {
+              setSortOrder(e.target.value as any)
+              setCurrentPage(1)
+            }}
+            options={[
+              { value: "none", label: "Sắp xếp: Mặc định" },
+              { value: "students-asc", label: "Số sinh viên: Tăng dần ↑" },
+              { value: "students-desc", label: "Số sinh viên: Giảm dần ↓" },
+            ]}
+          />
         </div>
 
         {/* Table */}
@@ -314,7 +336,22 @@ export default function ClassManagement() {
                   </th>
                   <th className="text-left text-[13px] font-medium text-gray-500 py-3 px-4">Mã lớp</th>
                   <th className="text-left text-[13px] font-medium text-gray-500 py-3 px-4">Tên lớp</th>
-                  <th className="text-center text-[13px] font-medium text-gray-500 py-3 px-4">Sĩ số</th>
+                  <th
+                    className="text-center text-[13px] font-semibold text-gray-700 py-3 px-4 cursor-pointer select-none hover:text-[#D9272B] transition-colors"
+                    onClick={() => {
+                      if (sortOrder === "students-asc") setSortOrder("students-desc")
+                      else setSortOrder("students-asc")
+                      setCurrentPage(1)
+                    }}
+                    title="Bấm để đổi hướng sắp xếp số lượng sinh viên"
+                  >
+                    <div className="flex items-center justify-center gap-1">
+                      <span>Sĩ số</span>
+                      <ArrowUpDown className="h-3.5 w-3.5" />
+                      {sortOrder === "students-asc" && <span className="text-[#D9272B] font-bold">↑</span>}
+                      {sortOrder === "students-desc" && <span className="text-[#D9272B] font-bold">↓</span>}
+                    </div>
+                  </th>
                   <th className="text-center text-[13px] font-medium text-gray-500 py-3 px-4 w-28">Thao tác</th>
                 </tr>
               </thead>

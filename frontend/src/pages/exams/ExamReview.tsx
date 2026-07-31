@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+﻿import { useState, useEffect } from "react"
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom"
 import {
   Target,
@@ -9,11 +9,11 @@ import {
   AlertCircle,
   Award,
 } from "lucide-react"
-import TeacherLayout from "@/components/layouts/TeacherLayout"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { reportService, type ExamReportResponse } from "@/services/reportService"
+import TeacherLayout from "@/widgets/layouts/TeacherLayout"
+import { Badge } from "@/shared/ui/badge"
+import { Button } from "@/shared/ui/button"
+import { Card, CardContent } from "@/shared/ui/card"
+import { reportService, type ExamReportResponse } from "@/entities/report/reportService"
 
 export default function ExamReview() {
   const navigate = useNavigate()

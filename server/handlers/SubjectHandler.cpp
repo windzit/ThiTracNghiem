@@ -1,8 +1,10 @@
 #include "SubjectHandler.h"
 #include "../ServerContext.h"
-#include <cstring>
+#include "StorageManager.h"
+#include "IndexManager.h"
 #include "StorageValidator.h"
 #include "StringNormalizer.h"
+#include <cstring>
 
 using namespace std;
 
@@ -39,7 +41,7 @@ void handle_get_subject_by_id(const httplib::Request& req, httplib::Response& re
         if (q) {
             questions.push_back({{"id",q->cauhoi.ID},{"noidung",q->cauhoi.NOIDUNG},
                 {"A",q->cauhoi.A},{"B",q->cauhoi.B},{"C",q->cauhoi.C},{"D",q->cauhoi.D},
-                {"dapan",string(1,q->cauhoi.DAPAN_DUNG)},{"used",q->cauhoi.used}});
+                {"dapan",string(1,q->cauhoi.DAPAN_DUNG)},{"used",q->cauhoi.used},{"deleted",q->cauhoi.deleted}});
         }
     }
     json_response(res, {{"mamh",node->data.MAMH},{"tenmh",node->data.TENMH},
@@ -76,6 +78,8 @@ void handle_create_subject(const httplib::Request& req, httplib::Response& res) 
     }
 
     if (dsmh.insert(mh)) {
+        int64_t outOffset = -1;
+        StorageManager::getInstance().appendSubject(mh, outOffset);
         json_response(res, {{"mamh",mh.MAMH},{"tenmh",mh.TENMH},{"used",false}}, 201);
     } else {
         error_response(res, "Failed to create subject", 500);
@@ -109,6 +113,10 @@ void handle_update_subject(const httplib::Request& req, httplib::Response& res) 
     }
 
     if (dsmh.update(mamh.c_str(), candidateMh.TENMH)) {
+        int64_t offset = -1;
+        if (IndexManager::getInstance().getSubjectOffset(mamh, offset)) {
+            StorageManager::getInstance().writeSubjectAt(offset, node->data);
+        }
         json_response(res, {{"mamh",node->data.MAMH},{"tenmh",node->data.TENMH},{"used",node->data.used}});
     } else {
         error_response(res, "Failed to update subject", 500);
@@ -123,9 +131,18 @@ void handle_delete_subject(const httplib::Request& req, httplib::Response& res) 
     if (!node) {
         error_response(res, "Subject not found", 404); return;
     }
+
+    int64_t offset = -1;
+    bool hasOffset = IndexManager::getInstance().getSubjectOffset(mamh, offset);
+
     if (dsmh.remove(mamh.c_str())) {
+        if (hasOffset) {
+            StorageManager::getInstance().markSubjectStatusAt(offset, STATUS_DELETED);
+            IndexManager::getInstance().removeSubjectOffset(mamh);
+        }
         res.status = 204;
     } else {
         error_response(res, "Failed to delete subject (may have used questions)", 422);
     }
 }
+

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+﻿import { useState, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import {
   ArrowLeft,
@@ -10,12 +10,12 @@ import {
   Loader2,
   Tag,
 } from "lucide-react"
-import TeacherLayout from "@/components/layouts/TeacherLayout"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { EmptyState } from "@/components/shared"
-import { questionService } from "@/services/questionService"
-import type { Question } from "@/types"
+import TeacherLayout from "@/widgets/layouts/TeacherLayout"
+import { Button } from "@/shared/ui/button"
+import { Badge } from "@/shared/ui/badge"
+import { EmptyState } from "@/shared/components"
+import { questionService } from "@/entities/question/questionService"
+import type { Question } from "@/shared/types"
 
 export default function QuestionDetail() {
   const navigate = useNavigate()

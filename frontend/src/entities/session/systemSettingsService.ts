@@ -1,4 +1,4 @@
-import { api } from "@/config/api"
+﻿import { api } from "@/shared/api/api"
 
 export interface SystemSettings {
   fullscreenRequired: boolean

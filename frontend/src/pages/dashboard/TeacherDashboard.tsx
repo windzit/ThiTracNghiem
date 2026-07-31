@@ -1,4 +1,4 @@
-import TeacherLayout from "@/components/layouts/TeacherLayout"
+﻿import TeacherLayout from "@/widgets/layouts/TeacherLayout"
 import { useNavigate } from "react-router-dom"
 import {
   Users,
@@ -13,15 +13,15 @@ import {
   Shield,
 } from "lucide-react"
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts"
-import { authService } from "@/services/authService"
-import { classService } from "@/services/classService"
-import { subjectService } from "@/services/subjectService"
-import { systemSettingsService } from "@/services/systemSettingsService"
-import type { ClassItem, Subject } from "@/types"
+import { authService } from "@/entities/session/authService"
+import { classService } from "@/entities/class/classService"
+import { subjectService } from "@/entities/subject/subjectService"
+import { systemSettingsService } from "@/entities/session/systemSettingsService"
+import type { ClassItem, Subject } from "@/shared/types"
 import { useState, useEffect } from "react"
-import { EmptyState } from "@/components/shared"
-import { useToast } from "@/context/ToastContext"
-import { ApiErrorHandler } from "@/utils/ApiErrorHandler"
+import { EmptyState } from "@/shared/components"
+import { useToast } from "@/app/providers/ToastContext"
+import { ApiErrorHandler } from "@/shared/api/ApiErrorHandler"
 
 const COLORS = ["#8B5CF6", "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#EC4899", "#6366F1"]
 

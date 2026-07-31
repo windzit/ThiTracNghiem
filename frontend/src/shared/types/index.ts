@@ -1,4 +1,4 @@
-import type { DifficultyValue } from "@/data/difficulty"
+﻿import type { DifficultyValue } from "@/shared/config/difficulty"
 
 export interface ClassItem {
   id: string

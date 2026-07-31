@@ -40,6 +40,7 @@ public:
     bool insert(CauHoi& cauhoi, bool autoId = false);
     bool removeNode(int ID);   // Physical removal (hard delete)
     bool setDeleted(int ID);   // Soft delete: set deleted=true
+    bool restoreDeleted(int ID); // Restore soft deleted: set deleted=false
     bool update(int ID, const CauHoi& newData);
     dsCHT* find(int ID);
     bool hasUsedQuestions() const;

@@ -59,6 +59,8 @@ void registerRoutes(httplib::Server& svr) {
     svr.Post("/api/questions", handle_create_question);
     svr.Post("/api/questions/bulk-delete", handle_bulk_delete_questions);
     svr.Put("/api/questions/:id", handle_update_question);
+    svr.Put("/api/questions/:id/restore", handle_restore_question);
+    svr.Post("/api/questions/:id/restore", handle_restore_question);
     svr.Delete("/api/questions/:id", handle_delete_question);
 
     // Exam

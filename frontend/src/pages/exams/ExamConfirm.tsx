@@ -1,10 +1,10 @@
-import { useState } from "react"
+﻿import { useState } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { ArrowLeft, BookOpen, Hash, Clock, AlertTriangle, Shield } from "lucide-react"
-import StudentLayout from "@/components/layouts/StudentLayout"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { examSessionService } from "@/services/examSessionService"
+import StudentLayout from "@/widgets/layouts/StudentLayout"
+import { Button } from "@/shared/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
+import { examSessionService } from "@/entities/exam/examSessionService"
 
 export default function ExamConfirm() {
   const navigate = useNavigate()

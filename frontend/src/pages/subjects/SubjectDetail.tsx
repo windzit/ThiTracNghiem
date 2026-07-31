@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+﻿import { useState, useEffect } from "react"
 import { useParams } from "react-router-dom"
 import {
   BookOpen,
@@ -28,11 +28,11 @@ import {
   CheckSquare,
   AlertCircle,
 } from "lucide-react"
-import TeacherLayout from "@/components/layouts/TeacherLayout"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Select } from "@/components/ui/select"
+import TeacherLayout from "@/widgets/layouts/TeacherLayout"
+import { Button } from "@/shared/ui/button"
+import { Input } from "@/shared/ui/input"
+import { Badge } from "@/shared/ui/badge"
+import { Select } from "@/shared/ui/select"
 import {
   PieChart,
   Pie,
@@ -48,9 +48,9 @@ import {
   Line,
   LabelList,
 } from "recharts"
-import { subjectService } from "@/services/subjectService"
-import { questionService } from "@/services/questionService"
-import type { Subject } from "@/types"
+import { subjectService } from "@/entities/subject/subjectService"
+import { questionService } from "@/entities/question/questionService"
+import type { Subject } from "@/shared/types"
 import {
   subjectDifficultyData as difficultyData,
   subjectChapterData as chapterData,
@@ -58,7 +58,7 @@ import {
   subjectExamPassRateData as examPassRateData,
   subjectScoreDistributionData as scoreDistributionData,
   subjectTrendData as trendData,
-} from "@/data/mockCharts"
+} from "@/shared/config/mockCharts"
 
 const subjectData = {
   id: "1",

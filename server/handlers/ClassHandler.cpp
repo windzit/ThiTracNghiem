@@ -1,8 +1,10 @@
 #include "ClassHandler.h"
 #include "../ServerContext.h"
-#include <iostream>
+#include "StorageManager.h"
+#include "IndexManager.h"
 #include "StorageValidator.h"
 #include "StringNormalizer.h"
+#include <iostream>
 
 using namespace std;
 
@@ -42,8 +44,6 @@ void handle_create_class(const httplib::Request& req, httplib::Response& res) {
     string malop = body.value("malop", "");
     string tenlop = body.value("tenlop", "");
 
-    std::cout << "[TENLOP AUDIT Step 1] HTTP request raw tenlop: '" << tenlop << "', len=" << tenlop.length() << std::endl;
-
     if (malop.empty() || tenlop.empty()) {
         error_response(res, "malop and tenlop are required", 400);
         return;
@@ -72,6 +72,8 @@ void handle_create_class(const httplib::Request& req, httplib::Response& res) {
     }
 
     if (dsl.insert(lop)) {
+        int64_t outOffset = -1;
+        StorageManager::getInstance().appendClass(*lop, outOffset);
         json_response(res, {{"malop", lop->MALOP}, {"tenlop", lop->TENLOP}, {"siso", 0}}, 201);
     } else {
         error_response(res, "Failed to create class", 500);
@@ -118,7 +120,10 @@ void handle_update_class(const httplib::Request& req, httplib::Response& res) {
 
     Lop* updated = dsl.find(malop);
     if (updated) {
-        std::cout << "[TENLOP AUDIT Step 3] Update RAM Object TENLOP: '" << updated->TENLOP << "', len=" << updated->TENLOP.length() << std::endl;
+        int64_t offset = -1;
+        if (IndexManager::getInstance().getClassOffset(malop, offset)) {
+            StorageManager::getInstance().writeClassAt(offset, *updated);
+        }
     }
     json_response(res, {{"malop", updated->MALOP}, {"tenlop", updated->TENLOP},
         {"siso", updated->dssinhvien.size()}});
@@ -144,9 +149,17 @@ void handle_delete_class(const httplib::Request& req, httplib::Response& res) {
         return;
     }
 
+    int64_t offset = -1;
+    bool hasOffset = IndexManager::getInstance().getClassOffset(malop, offset);
+
     if (dsl.remove(malop)) {
+        if (hasOffset) {
+            StorageManager::getInstance().markClassStatusAt(offset, STATUS_DELETED);
+            IndexManager::getInstance().removeClassOffset(malop);
+        }
         res.status = 204;
     } else {
         error_response(res, "Failed to delete class", 500);
     }
 }
+

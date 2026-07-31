@@ -76,7 +76,4 @@ add_executable(console
     "src/StringNormalizer.cpp"
 )
 
-# ============================================================
-# Target 3: PTIT Data Generator
-# ============================================================
-add_subdirectory(tools/DataGenerator)
+

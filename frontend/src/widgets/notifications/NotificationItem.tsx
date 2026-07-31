@@ -1,4 +1,4 @@
-import {
+﻿import {
   FileText,
   ClipboardList,
   CheckCircle2,
@@ -7,7 +7,7 @@ import {
   TrendingUp,
   BookOpen,
 } from "lucide-react"
-import type { Notification } from "@/types"
+import type { Notification } from "@/shared/types"
 
 // Map icon name → Lucide icon component
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {

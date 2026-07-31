@@ -1,10 +1,10 @@
-import { Badge } from "@/components/ui/badge"
+﻿import { Badge } from "@/shared/ui/badge"
 import {
   Difficulty,
   DIFFICULTY_LABELS,
   DIFFICULTY_STYLES,
   type DifficultyValue,
-} from "@/data/difficulty"
+} from "@/shared/config/difficulty"
 
 interface DifficultyBadgeProps {
   difficulty: DifficultyValue

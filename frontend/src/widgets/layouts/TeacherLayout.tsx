@@ -1,4 +1,4 @@
-import { useNavigate, useLocation } from "react-router-dom"
+﻿import { useNavigate, useLocation } from "react-router-dom"
 import { useState, useEffect, useRef } from "react"
 import {
   Home,
@@ -13,10 +13,10 @@ import {
   Menu,
   Lock,
 } from "lucide-react"
-import { NotificationDropdown } from "@/components/shared/NotificationDropdown"
-import { authService } from "@/services/authService"
-import { useToast } from "@/context/ToastContext"
-import { systemSettingsService } from "@/services/systemSettingsService"
+import { NotificationDropdown } from "@/widgets/notifications/NotificationDropdown"
+import { authService } from "@/entities/session/authService"
+import { useToast } from "@/app/providers/ToastContext"
+import { systemSettingsService } from "@/entities/session/systemSettingsService"
 
 interface TeacherLayoutProps {
   children: React.ReactNode

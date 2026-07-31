@@ -12,27 +12,28 @@ import {
   Archive,
   Star,
   ArrowUpDown,
+  RotateCcw,
 } from "lucide-react"
-import TeacherLayout from "@/components/layouts/TeacherLayout"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Label } from "@/components/ui/label"
-import { questionService } from "@/services/questionService"
-import { subjectService } from "@/services/subjectService"
-import { useToast } from "@/context/ToastContext"
-import type { Subject, Question } from "@/types"
-import { Difficulty } from "@/data/difficulty"
-import { StatCard, Pagination, Drawer, StatusBadge, SubjectAutocomplete } from "@/components/shared"
-import { ApiErrorHandler } from "@/utils/ApiErrorHandler"
-import { minDelay } from "@/utils/delay"
+import TeacherLayout from "@/widgets/layouts/TeacherLayout"
+import { Button } from "@/shared/ui/button"
+import { Input } from "@/shared/ui/input"
+import { Select } from "@/shared/ui/select"
+import { Textarea } from "@/shared/ui/textarea"
+import { RadioGroup, RadioGroupItem } from "@/shared/ui/radio-group"
+import { Label } from "@/shared/ui/label"
+import { questionService } from "@/entities/question/questionService"
+import { subjectService } from "@/entities/subject/subjectService"
+import { useToast } from "@/app/providers/ToastContext"
+import type { Subject, Question } from "@/shared/types"
+import { Difficulty } from "@/shared/config/difficulty"
+import { StatCard, Pagination, Drawer, StatusBadge, SubjectAutocomplete } from "@/shared/components"
+import { ApiErrorHandler } from "@/shared/api/ApiErrorHandler"
+import { minDelay } from "@/shared/lib/delay"
 import {
   validateQuestionContent,
   validateQuestionOption,
   normalizeText,
-} from "@/utils/formValidation"
+} from "@/shared/lib/formValidation"
 
 export default function QuestionManagement() {
   const navigate = useNavigate()
@@ -149,7 +150,7 @@ export default function QuestionManagement() {
     // Business rule filter
     let matchStatus = true
     if (statusFilter === "used") {
-      matchStatus = q.used
+      matchStatus = q.used && !q.deleted
     } else if (statusFilter === "unused") {
       matchStatus = !q.used && !q.deleted
     } else if (statusFilter === "deleted") {
@@ -172,15 +173,17 @@ export default function QuestionManagement() {
 
   // Statistics — computed independently, never derived by subtraction
   const totalQuestions = subjectScopedQuestions.length
-  const usedCount = subjectScopedQuestions.filter(q => q.used).length
+  const usedCount = subjectScopedQuestions.filter(q => q.used && !q.deleted).length
   const deletedCount = subjectScopedQuestions.filter(q => q.deleted).length
   const unusedCount = subjectScopedQuestions.filter(q => !q.used && !q.deleted).length
 
+  const selectableQuestions = paginatedQuestions.filter((q) => !q.deleted)
+
   const toggleSelectAll = () => {
-    if (selectedIds.length === paginatedQuestions.length) {
+    if (selectedIds.length === selectableQuestions.length && selectableQuestions.length > 0) {
       setSelectedIds([])
     } else {
-      setSelectedIds(paginatedQuestions.map((q) => q.id))
+      setSelectedIds(selectableQuestions.map((q) => q.id))
     }
   }
 
@@ -369,6 +372,28 @@ export default function QuestionManagement() {
     }
   }
 
+  const handleRestoreQuestion = (q: Question) => {
+    confirm({
+      title: "Xác nhận khôi phục câu hỏi",
+      message: `Bạn có chắc chắn muốn hủy vô hiệu hóa câu hỏi #${q.id}?\n\nSau khi khôi phục, câu hỏi sẽ quay lại trạng thái hoạt động và có thể được sử dụng trong các đề thi mới.`,
+      severity: "warning",
+      confirmText: "Khôi phục",
+      onConfirm: async () => {
+        const foundSubj = subjects.find(s => s.name === q.subject || s.code === q.subject)
+        const mamh = foundSubj ? foundSubj.code : (q.mamh || q.subject)
+        const res = await minDelay(questionService.restoreQuestion(q.id, mamh), 400)
+        if (!res.success) {
+          showError("Không thể khôi phục câu hỏi", res.message)
+        } else {
+          showSuccess("Khôi phục câu hỏi thành công!", `Mã câu hỏi: #${q.id}`)
+          setTimeout(() => {
+            window.location.reload()
+          }, 1500)
+        }
+      }
+    })
+  }
+
   const handleBulkDelete = () => {
     if (selectedIds.length === 0) return
     const items = selectedIds.map(id => {
@@ -378,16 +403,17 @@ export default function QuestionManagement() {
     })
 
     confirm({
-      title: "Xác nhận xóa hàng loạt",
-      message: `Bạn có chắc chắn muốn xóa ${selectedIds.length} câu hỏi đã chọn? Thao tác này không thể hoàn tác.`,
+      title: "Xác nhận xóa / vô hiệu hóa hàng loạt",
+      message: `Bạn có chắc chắn muốn xóa / vô hiệu hóa ${selectedIds.length} câu hỏi đã chọn?\n\n- Các câu hỏi chưa từng sử dụng sẽ bị xóa vĩnh viễn.\n- Các câu hỏi đã từng sử dụng sẽ chuyển sang trạng thái "Vô hiệu hóa".`,
       severity: "danger",
-      confirmText: `Xóa ${selectedIds.length} câu hỏi`,
+      confirmText: `Đồng ý (${selectedIds.length})`,
       onConfirm: async () => {
         const res = await minDelay(questionService.bulkDeleteQuestions(items), 400)
         if (!res.success) {
-          showError("Không thể xóa hàng loạt câu hỏi", res.message)
+          showError("Không thể thực hiện thao tác hàng loạt", res.message)
         } else {
-          showSuccess("Xóa hàng loạt câu hỏi thành công", `Đã xóa ${res.deletedCount || selectedIds.length} câu hỏi`)
+          showSuccess("Thực hiện thao tác thành công", `Đã xử lý ${res.deletedCount || selectedIds.length} câu hỏi.`)
+          setSelectedIds([])
           setTimeout(() => {
             window.location.reload()
           }, 2500)
@@ -551,7 +577,7 @@ export default function QuestionManagement() {
                     <input
                       type="checkbox"
                       className="w-4 h-4 rounded border-gray-300 text-[#D9272B] focus:ring-[#D9272B]/20 cursor-pointer"
-                      checked={selectedIds.length === paginatedQuestions.length && paginatedQuestions.length > 0}
+                      checked={selectableQuestions.length > 0 && selectedIds.length === selectableQuestions.length}
                       onChange={toggleSelectAll}
                     />
                   </th>
@@ -572,63 +598,76 @@ export default function QuestionManagement() {
               <tbody>
                 {paginatedQuestions.map((q) => (
                   <tr key={q.id} className={`border-b border-gray-100 transition-colors ${
-                    q.deleted ? 'bg-gray-50 text-gray-400' : 'hover:bg-gray-50/50'
+                    q.deleted ? 'bg-gray-50/80 text-gray-400' : 'hover:bg-gray-50/50 text-gray-900'
                   }`}>
                     <td className="px-4 py-3">
                       <input
                         type="checkbox"
-                        className="w-4 h-4 rounded border-gray-300 text-[#D9272B] focus:ring-[#D9272B]/20 cursor-pointer"
+                        disabled={q.deleted}
+                        className={`w-4 h-4 rounded border-gray-300 text-[#D9272B] focus:ring-[#D9272B]/20 ${
+                          q.deleted ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                        }`}
                         checked={selectedIds.includes(q.id)}
-                        onChange={() => toggleSelect(q.id)}
+                        onChange={() => !q.deleted && toggleSelect(q.id)}
                       />
                     </td>
-                    <td className="px-4 py-3 text-sm font-medium">{q.id}</td>
+                    <td className={`px-4 py-3 text-sm ${q.deleted ? 'text-gray-400 font-normal' : 'text-gray-900 font-medium'}`}>{q.id}</td>
                     <td className="px-4 py-3">
-                      <div className="text-sm font-medium">{q.content}</div>
-                      <div className="text-xs mt-0.5">{q.subText}</div>
+                      <div className={`text-sm ${q.deleted ? 'line-through text-gray-400 font-normal' : 'text-gray-900 font-medium'}`}>{q.content}</div>
+                      {q.subText && <div className={`text-xs mt-0.5 ${q.deleted ? 'text-gray-300' : 'text-gray-500'}`}>{q.subText}</div>}
                     </td>
-                    <td className="px-4 py-3 text-sm">{q.subject}</td>
-                    <td className="px-4 py-3 text-sm">{q.type}</td>
+                    <td className={`px-4 py-3 text-sm ${q.deleted ? 'text-gray-400' : 'text-gray-700'}`}>{q.subject}</td>
+                    <td className={`px-4 py-3 text-sm ${q.deleted ? 'text-gray-400' : 'text-gray-700'}`}>{q.type}</td>
                     {/* Single status badge — priority: deleted > used > unused */}
                     <td className="px-4 py-3">
                       <StatusBadge status={q.deleted ? "deleted" : (q.used ? "used" : "unused")} />
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-1">
-                        {/* View — always enabled */}
-                        <button
-                          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-700"
-                          title="Xem chi tiết"
-                          onClick={() => navigate(`/teacher/questions/${q.id}`)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        {/* Edit — disabled if deleted */}
-                        <button
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            q.deleted
-                              ? 'text-gray-300 cursor-not-allowed'
-                              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                          }`}
-                          title={q.deleted ? "Câu hỏi đã bị vô hiệu hóa." : "Chỉnh sửa"}
-                          disabled={q.deleted}
-                          onClick={() => !q.deleted && handleOpenEditDrawer(q)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        {/* Delete — shows toast if deleted, otherwise confirmation */}
-                        <button
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            q.deleted
-                              ? 'text-gray-300 cursor-not-allowed'
-                              : 'text-gray-500 hover:text-red-600 hover:bg-gray-100'
-                          }`}
-                          title={q.deleted ? "Câu hỏi đã bị vô hiệu hóa." : "Xóa"}
-                          disabled={q.deleted}
-                          onClick={() => handleSingleDelete(q)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                      <div className="flex items-center justify-center gap-1.5">
+                        {q.deleted ? (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 gap-1.5 text-xs text-blue-600 border-blue-300 hover:bg-blue-50 font-medium"
+                              onClick={() => handleRestoreQuestion(q)}
+                            >
+                              <RotateCcw className="h-3.5 w-3.5" />
+                              Hủy vô hiệu hóa
+                            </Button>
+                            <button
+                              className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-700"
+                              title="Xem chi tiết"
+                              onClick={() => navigate(`/teacher/questions/${q.id}`)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-700"
+                              title="Xem chi tiết"
+                              onClick={() => navigate(`/teacher/questions/${q.id}`)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                            <button
+                              className="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                              title="Chỉnh sửa"
+                              onClick={() => handleOpenEditDrawer(q)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button
+                              className="p-1.5 rounded-lg text-gray-500 hover:text-red-600 hover:bg-gray-100 transition-colors"
+                              title="Xóa"
+                              onClick={() => handleSingleDelete(q)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
