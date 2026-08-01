@@ -91,7 +91,20 @@ bool StorageManager::checkAndSaveAuto(Class& dsl, Subject& dsmh) {
 int StorageManager::getNextQuestionID() {
     cachedLastQuestionId++;
     markDirty();
+    saveMetadata();
     return cachedLastQuestionId;
+}
+
+bool StorageManager::saveMetadata() {
+    std::ostringstream ss;
+    ss << "SCHEMA_VERSION=2.0\n"
+       << "LAST_QUESTION_ID=" << cachedLastQuestionId << "\n"
+       << "DELETED_STUDENT_COUNT=" << s_deletedStudentCount << "\n"
+       << "DELETED_QUESTION_COUNT=" << s_deletedQuestionCount << "\n"
+       << "DELETED_SUBJECT_COUNT=" << s_deletedSubjectCount << "\n"
+       << "DELETED_CLASS_COUNT=" << s_deletedClassCount << "\n";
+
+    return atomicWriteFile(PathResolver::getFilePath("metadata.txt"), ss.str());
 }
 
 // ============================================================
@@ -487,6 +500,7 @@ bool StorageManager::loadAllData(Class& dsl, Subject& dsmh) {
     rebuildIndexes();
     std::cout << "[STARTUP LOG] [END] rebuildIndexes\n";
 
+    saveMetadata();
     std::cout << "[STARTUP LOG] [END] loadAllData\n";
     return true;
 }
@@ -1454,15 +1468,7 @@ void StorageManager::incrementDeletedCount(const std::string& entityType) {
     }
 
     // Update metadata.txt
-    std::ostringstream ss;
-    ss << "SCHEMA_VERSION=2.0\n"
-       << "LAST_QUESTION_ID=" << cachedLastQuestionId << "\n"
-       << "DELETED_STUDENT_COUNT=" << s_deletedStudentCount << "\n"
-       << "DELETED_QUESTION_COUNT=" << s_deletedQuestionCount << "\n"
-       << "DELETED_SUBJECT_COUNT=" << s_deletedSubjectCount << "\n"
-       << "DELETED_CLASS_COUNT=" << s_deletedClassCount << "\n";
-
-    atomicWriteFile(PathResolver::getFilePath("metadata.txt"), ss.str());
+    saveMetadata();
 }
 
 int StorageManager::getDeletedCount(const std::string& entityType) const {
@@ -1485,15 +1491,7 @@ void StorageManager::resetDeletedCount(const std::string& entityType) {
         s_deletedClassCount = 0;
     }
 
-    std::ostringstream ss;
-    ss << "SCHEMA_VERSION=2.0\n"
-       << "LAST_QUESTION_ID=" << cachedLastQuestionId << "\n"
-       << "DELETED_STUDENT_COUNT=" << s_deletedStudentCount << "\n"
-       << "DELETED_QUESTION_COUNT=" << s_deletedQuestionCount << "\n"
-       << "DELETED_SUBJECT_COUNT=" << s_deletedSubjectCount << "\n"
-       << "DELETED_CLASS_COUNT=" << s_deletedClassCount << "\n";
-
-    atomicWriteFile(PathResolver::getFilePath("metadata.txt"), ss.str());
+    saveMetadata();
 }
 
 static int countDeletedInFile(const std::string& filename, int statusTokenIdx) {

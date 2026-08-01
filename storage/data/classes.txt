@@ -19,3 +19,4 @@ D22CQMR02-N    |Lop Mang may tinh 2 Khoa 2022                     |0
 D22CQMR03-N    |Lop Mang may tinh 3 Khoa 2022                     |0
 D22CQMR04-N    |Lop Mang may tinh 4 Khoa 2022                     |0
 D22CQMR05-N    |Lop Mang may tinh 5 Khoa 2022                     |0
+D22CQC08-N     |Cong Nghe Thong Tin 2022                          |1

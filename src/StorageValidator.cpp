@@ -257,8 +257,9 @@ bool StorageValidator::hasDuplicateOptionsAfterNormalization(const CauHoi& q, st
         StringNormalizer::normalizeHumanText(q.D)
     };
     for (int i = 0; i < 4; i++) {
-        std::transform(opts[i].begin(), opts[i].end(), opts[i].begin(),
-            [](unsigned char c){ return std::tolower(c); });
+        for (char& c : opts[i]) {
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
     }
     for (int i = 0; i < 4; i++) {
         for (int j = i + 1; j < 4; j++) {

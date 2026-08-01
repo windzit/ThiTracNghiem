@@ -50,6 +50,7 @@ public:
 
     // Question ID Auto Increment
     int getNextQuestionID();
+    bool saveMetadata();
 
     // Derived Used Flags Rebuild Strategy
     void rebuildUsedFlags(Subject& dsmh);

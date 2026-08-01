@@ -19,3 +19,4 @@ INT1313        |Danh gia hieu nang he thong                       |0|0
 INT1314        |Dien toan dam may                                 |0|0
 INT1315        |Phat trien ung dung di dong                       |0|0
 INT1316        |Quan tri du an CNTT                               |0|0
+INT2006        |Dau Buoi Re Rach                                  |0|1

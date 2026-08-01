@@ -10,6 +10,12 @@ public:
     // Preserves '\r' and '\n' untouched so validator can detect and reject them.
     static std::string normalizeHumanText(const std::string& input);
 
+    // Title Case normalization (trim -> collapse space -> Capitalize First Letter)
+    static std::string toTitleCase(const std::string& input);
+
+    // Generic identifier normalization (Strips spaces & converts to UPPERCASE)
+    static std::string normalizeIdentifier(const std::string& input);
+
     // Generic identifier normalization (Trims leading/trailing whitespace only)
     static std::string trimIdentifier(const std::string& input);
 

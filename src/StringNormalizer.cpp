@@ -8,6 +8,41 @@ std::string StringNormalizer::trimIdentifier(const std::string& input) {
     return input.substr(first, (last - first + 1));
 }
 
+std::string StringNormalizer::normalizeIdentifier(const std::string& input) {
+    std::string result;
+    result.reserve(input.length());
+    for (char c : input) {
+        if (c != ' ' && c != '\t' && c != '\r' && c != '\n') {
+            result.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(c))));
+        }
+    }
+    return result;
+}
+
+std::string StringNormalizer::toTitleCase(const std::string& input) {
+    std::string s = normalizeHumanText(input);
+    if (s.empty()) return "";
+
+    std::string result;
+    result.reserve(s.length());
+    bool isWordStart = true;
+    for (size_t i = 0; i < s.length(); i++) {
+        char c = s[i];
+        if (c == ' ') {
+            result.push_back(' ');
+            isWordStart = true;
+        } else {
+            if (isWordStart) {
+                result.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(c))));
+                isWordStart = false;
+            } else {
+                result.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+            }
+        }
+    }
+    return result;
+}
+
 std::string StringNormalizer::normalizeHumanText(const std::string& input) {
     if (input.empty()) return "";
 
@@ -49,23 +84,23 @@ std::string StringNormalizer::normalizeHumanText(const std::string& input) {
 }
 
 void StringNormalizer::normalizeClass(Lop& lop) {
-    lop.MALOP = trimIdentifier(lop.MALOP);
-    lop.TENLOP = normalizeHumanText(lop.TENLOP);
+    lop.MALOP = normalizeIdentifier(lop.MALOP);
+    lop.TENLOP = toTitleCase(lop.TENLOP);
 }
 
 void StringNormalizer::normalizeStudent(SinhVien& sv) {
-    sv.MASV = trimIdentifier(sv.MASV);
-    sv.HO = normalizeHumanText(sv.HO);
-    sv.TEN = normalizeHumanText(sv.TEN);
+    sv.MASV = normalizeIdentifier(sv.MASV);
+    sv.HO = toTitleCase(sv.HO);
+    sv.TEN = toTitleCase(sv.TEN);
     sv.PHAI = normalizeHumanText(sv.PHAI);
     // PASSWORD is left 100% untouched
 }
 
 void StringNormalizer::normalizeSubject(MonHoc& mh) {
-    std::string mamh = trimIdentifier(mh.MAMH);
+    std::string mamh = normalizeIdentifier(mh.MAMH);
     std::strncpy(mh.MAMH, mamh.c_str(), sizeof(mh.MAMH) - 1);
     mh.MAMH[sizeof(mh.MAMH) - 1] = '\0';
-    mh.TENMH = normalizeHumanText(mh.TENMH);
+    mh.TENMH = toTitleCase(mh.TENMH);
 }
 
 void StringNormalizer::normalizeQuestion(CauHoi& q) {

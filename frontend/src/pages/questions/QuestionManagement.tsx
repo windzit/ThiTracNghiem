@@ -32,7 +32,8 @@ import { minDelay } from "@/shared/lib/delay"
 import {
   validateQuestionContent,
   validateQuestionOption,
-  normalizeText,
+  normalizeQuestionContent,
+  normalizeQuestionOption,
 } from "@/shared/lib/formValidation"
 
 export default function QuestionManagement() {
@@ -262,11 +263,11 @@ export default function QuestionManagement() {
     try {
       const answerIndexMap: Record<string, number> = { "A": 0, "B": 1, "C": 2, "D": 3 }
       const ansIdx = answerIndexMap[formAnswer] ?? 0
-      const normContent = normalizeText(formContent)
-      const normA = normalizeText(formA)
-      const normB = normalizeText(formB)
-      const normC = normalizeText(formC)
-      const normD = normalizeText(formD)
+      const normContent = normalizeQuestionContent(formContent)
+      const normA = normalizeQuestionOption(formA)
+      const normB = normalizeQuestionOption(formB)
+      const normC = normalizeQuestionOption(formC)
+      const normD = normalizeQuestionOption(formD)
 
       if (editingQuestion) {
         // Update question
@@ -756,7 +757,7 @@ export default function QuestionManagement() {
               validateFormContent(val)
             }}
             onBlur={(e) => {
-              const normalized = normalizeText(e.target.value)
+              const normalized = normalizeQuestionContent(e.target.value)
               setFormContent(normalized)
               validateFormContent(normalized)
             }}
@@ -779,7 +780,7 @@ export default function QuestionManagement() {
               validateFormOption(e.target.value, "a", "A")
             }}
             onBlur={(e) => {
-              const normalized = normalizeText(e.target.value)
+              const normalized = normalizeQuestionOption(e.target.value)
               setFormA(normalized)
               validateFormOption(normalized, "a", "A")
             }}
@@ -801,7 +802,7 @@ export default function QuestionManagement() {
               validateFormOption(e.target.value, "b", "B")
             }}
             onBlur={(e) => {
-              const normalized = normalizeText(e.target.value)
+              const normalized = normalizeQuestionOption(e.target.value)
               setFormB(normalized)
               validateFormOption(normalized, "b", "B")
             }}
@@ -823,7 +824,7 @@ export default function QuestionManagement() {
               validateFormOption(e.target.value, "c", "C")
             }}
             onBlur={(e) => {
-              const normalized = normalizeText(e.target.value)
+              const normalized = normalizeQuestionOption(e.target.value)
               setFormC(normalized)
               validateFormOption(normalized, "c", "C")
             }}
@@ -845,7 +846,7 @@ export default function QuestionManagement() {
               validateFormOption(e.target.value, "d", "D")
             }}
             onBlur={(e) => {
-              const normalized = normalizeText(e.target.value)
+              const normalized = normalizeQuestionOption(e.target.value)
               setFormD(normalized)
               validateFormOption(normalized, "d", "D")
             }}

@@ -17,11 +17,26 @@ export function containsForbiddenChars(str: string): boolean {
 }
 
 /**
+ * Title Case Transformation:
+ * trim() -> collapse consecutive spaces -> Capitalize First Letter Of Each Word
+ * Example: "cOng   nGhE" -> "Cong Nghe", "ngUYeN   vaN   an" -> "Nguyen Van An"
+ */
+export function toTitleCase(value: string): string {
+  const trimmed = value.trim().replace(/\s+/g, ' ')
+  if (!trimmed) return ''
+  return trimmed
+    .split(' ')
+    .map((word) => (word ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : ''))
+    .join(' ')
+}
+
+/**
  * Normalization Pipeline for Code/PK fields (MASV, MALOP, MAMH):
- * trim() -> uppercase (no space collapse)
+ * strip all spaces -> uppercase
+ * Example: " d 22-cq cn01 " -> "D22-CQCN01"
  */
 export function normalizeIdentifier(value: string): string {
-  return value.trim().toUpperCase()
+  return value.replace(/\s+/g, '').toUpperCase()
 }
 
 /**
@@ -32,11 +47,37 @@ export function normalizeCode(value: string): string {
 }
 
 /**
- * Normalization Pipeline for Human-readable Text fields (TENLOP, TENMH, HO, TEN, NOIDUNG, A, B, C, D):
- * trim() -> collapse consecutive spaces -> preserve case
+ * Normalization Pipeline for Human-readable Text fields (TENLOP, TENMH, HO, TEN):
+ * trim() -> collapse consecutive spaces -> Title Case
  */
 export function normalizeText(value: string): string {
+  return toTitleCase(value)
+}
+
+/**
+ * Normalization Pipeline for Question Content (NOIDUNG):
+ * trim() -> collapse consecutive spaces -> PRESERVE EXACT USER CASE (NO AUTO-CAPITALIZATION)
+ */
+export function normalizeQuestionContent(value: string): string {
   return value.trim().replace(/\s+/g, ' ')
+}
+
+/**
+ * Normalization Pipeline for Question Options (A, B, C, D):
+ * trim() -> collapse consecutive spaces -> Capitalize ONLY the FIRST letter of the first word (Sentence Case)
+ * Example: "phuong an   a   cau 10" -> "Phuong an a cau 10"
+ */
+export function normalizeQuestionOption(value: string): string {
+  const collapsed = value.trim().replace(/\s+/g, ' ')
+  if (!collapsed) return ''
+  return collapsed.charAt(0).toUpperCase() + collapsed.slice(1)
+}
+
+/**
+ * Legacy alias for Question Text:
+ */
+export function normalizeQuestionText(value: string): string {
+  return normalizeQuestionContent(value)
 }
 
 /**
@@ -54,15 +95,23 @@ export function normalizePassword(value: string): string {
   return value
 }
 
+// Allowed regex patterns
+const CODE_REGEX = /^[A-Za-z0-9-]+$/
+const NAME_REGEX = /^[A-Za-z0-9\s\-_()\u00C0-\u024F\u1EA0-\u1EF9]+$/
+const STUDENT_NAME_REGEX = /^[A-Za-z\s\u00C0-\u024F\u1EA0-\u1EF9]+$/
+
 /**
  * Validate Class Code (MALOP)
- * Backend MALOP_CHECKER: length > 0 && length <= 15, no forbidden chars
+ * Rule 1: Letters, numbers, and hyphen '-'. No spaces, max 15 chars.
  */
 export function validateClassCode(code: string): string | null {
-  const normalized = code.trim()
-  if (!normalized) return "Mã lớp không được để trống."
-  if (normalized.length > VALIDATION_CONSTANTS.MAX_CODE_LENGTH) {
+  const stripped = code.replace(/\s+/g, '')
+  if (!stripped) return "Mã lớp không được để trống."
+  if (stripped.length > VALIDATION_CONSTANTS.MAX_CODE_LENGTH) {
     return `Mã lớp không vượt quá ${VALIDATION_CONSTANTS.MAX_CODE_LENGTH} ký tự.`
+  }
+  if (!CODE_REGEX.test(stripped)) {
+    return "Mã lớp chỉ được chứa chữ cái, chữ số và dấu gạch ngang '-'."
   }
   if (containsForbiddenChars(code)) {
     return "Mã lớp không được chứa ký tự cấm (|, tab, xuống dòng...)."
@@ -72,10 +121,14 @@ export function validateClassCode(code: string): string | null {
 
 /**
  * Validate Class Name (TENLOP)
- * Backend TENLOP_CHECKER: length > 0, no forbidden chars
+ * Rule 2: Letters, numbers, spaces, '-', '_', '(', ')'
  */
 export function validateClassName(name: string): string | null {
-  if (!name.trim()) return "Tên lớp không được để trống."
+  const trimmed = name.trim()
+  if (!trimmed) return "Tên lớp không được để trống."
+  if (!NAME_REGEX.test(trimmed)) {
+    return "Tên lớp chỉ được chứa chữ cái, chữ số, khoảng trắng, '-', '_', '(' và ')'."
+  }
   if (containsForbiddenChars(name)) {
     return "Tên lớp không được chứa ký tự cấm (|, tab, xuống dòng...)."
   }
@@ -96,12 +149,16 @@ export function validateDepartment(dept: string): string | null {
 
 /**
  * Validate Subject Code (MAMH)
+ * Rule 1: Letters, numbers, and hyphen '-'. No spaces, max 15 chars.
  */
 export function validateSubjectCode(code: string): string | null {
-  const normalized = code.trim()
-  if (!normalized) return "Mã môn không được để trống."
-  if (normalized.length > VALIDATION_CONSTANTS.MAX_CODE_LENGTH) {
+  const stripped = code.replace(/\s+/g, '')
+  if (!stripped) return "Mã môn không được để trống."
+  if (stripped.length > VALIDATION_CONSTANTS.MAX_CODE_LENGTH) {
     return `Mã môn không vượt quá ${VALIDATION_CONSTANTS.MAX_CODE_LENGTH} ký tự.`
+  }
+  if (!CODE_REGEX.test(stripped)) {
+    return "Mã môn chỉ được chứa chữ cái, chữ số và dấu gạch ngang '-'."
   }
   if (containsForbiddenChars(code)) {
     return "Mã môn không được chứa ký tự cấm (|, tab, xuống dòng...)."
@@ -111,9 +168,14 @@ export function validateSubjectCode(code: string): string | null {
 
 /**
  * Validate Subject Name (TENMH)
+ * Rule 2: Letters, numbers, spaces, '-', '_', '(', ')'
  */
 export function validateSubjectName(name: string): string | null {
-  if (!name.trim()) return "Tên môn không được để trống."
+  const trimmed = name.trim()
+  if (!trimmed) return "Tên môn không được để trống."
+  if (!NAME_REGEX.test(trimmed)) {
+    return "Tên môn chỉ được chứa chữ cái, chữ số, khoảng trắng, '-', '_', '(' và ')'."
+  }
   if (containsForbiddenChars(name)) {
     return "Tên môn không được chứa ký tự cấm (|, tab, xuống dòng...)."
   }
@@ -122,12 +184,16 @@ export function validateSubjectName(name: string): string | null {
 
 /**
  * Validate Student ID (MASV)
+ * Rule 1: Letters, numbers, and hyphen '-'. No spaces, max 15 chars.
  */
 export function validateStudentId(masv: string): string | null {
-  const normalized = masv.trim()
-  if (!normalized) return "Mã sinh viên không được để trống."
-  if (normalized.length > VALIDATION_CONSTANTS.MAX_CODE_LENGTH) {
+  const stripped = masv.replace(/\s+/g, '')
+  if (!stripped) return "Mã sinh viên không được để trống."
+  if (stripped.length > VALIDATION_CONSTANTS.MAX_CODE_LENGTH) {
     return `Mã sinh viên không vượt quá ${VALIDATION_CONSTANTS.MAX_CODE_LENGTH} ký tự.`
+  }
+  if (!CODE_REGEX.test(stripped)) {
+    return "Mã sinh viên chỉ được chứa chữ cái, chữ số và dấu gạch ngang '-'."
   }
   if (containsForbiddenChars(masv)) {
     return "Mã sinh viên không được chứa ký tự cấm (|, tab, xuống dòng...)."
@@ -137,9 +203,14 @@ export function validateStudentId(masv: string): string | null {
 
 /**
  * Validate Student Name / HO / TEN
+ * Rule 3: ONLY letters and spaces
  */
 export function validateStudentName(name: string): string | null {
-  if (!name.trim()) return "Họ tên không được để trống."
+  const trimmed = name.trim()
+  if (!trimmed) return "Họ tên không được để trống."
+  if (!STUDENT_NAME_REGEX.test(trimmed)) {
+    return "Họ tên sinh viên chỉ được chứa chữ cái và khoảng trắng."
+  }
   if (containsForbiddenChars(name)) {
     return "Họ tên không được chứa ký tự cấm (|, tab, xuống dòng...)."
   }
@@ -171,6 +242,7 @@ export function validateGender(phai: string): string | null {
 
 /**
  * Validate Question Content (NOIDUNG)
+ * Rule 4: Allow all chars (except control chars/pipes)
  */
 export function validateQuestionContent(content: string): string | null {
   if (!content || !content.trim()) return "Nội dung câu hỏi không được để trống."
@@ -182,6 +254,7 @@ export function validateQuestionContent(content: string): string | null {
 
 /**
  * Validate Question Option (A/B/C/D)
+ * Rule 4: Allow all chars (except control chars/pipes)
  */
 export function validateQuestionOption(opt: string, label: string): string | null {
   if (!opt || !opt.trim()) return `Đáp án ${label} không được để trống.`
