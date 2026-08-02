@@ -63,9 +63,8 @@ Làm chủ cách triển khai các Cấu trúc dữ liệu thuần C++ (Dynamic 
 1. `[DArray.h](file:///include/DArray.h)`
 2. `[HashTable.h](file:///include/HashTable.h)`
 3. `[LinkedList.h](file:///include/LinkedList.h)`
-4. `[Queue.h](file:///include/Queue.h)`
-5. `[Stack.h](file:///include/Stack.h)`
-6. `[StringNormalizer.h](file:///include/StringNormalizer.h)` / `[StringNormalizer.cpp](file:///src/StringNormalizer.cpp)`
+4. `[StringNormalizer.h](file:///include/StringNormalizer.h)` / `[StringNormalizer.cpp](file:///src/StringNormalizer.cpp)`
+
 
 ### 💡 Kiến thức cần nắm:
 - Thuật toán Dò tuyến tính (Linear Probing) và băm chuỗi/số trong `HashTable<K, V>`.
@@ -171,15 +170,19 @@ Theo dõi và giải thích trôi chảy toàn bộ luồng code của API `POST
 
 ---
 
-## 📌 BƯỚC 7: Đọc Tầng Tích hợp Frontend API (Frontend API Call Layer)
+## 📌 BƯỚC 7: Đọc Tầng Tích hợp Frontend API & Form Validation (Frontend Layer)
 
 ### 🎯 Mục tiêu cần hiểu:
-Hiểu cách Frontend React TypeScript gọi API Backend, unwrap dữ liệu và bắt lỗi mạng.
+Hiểu cách Frontend React TypeScript chuẩn hóa, kiểm định dữ liệu form UI, gọi API Backend, unwrap dữ liệu và bắt lỗi mạng.
 
 ### 📁 Các file cần đọc:
-1. `[api.ts](file:///frontend/src/shared/api/api.ts)` (Axios Interceptors client)
-2. `[ApiErrorHandler.ts](file:///frontend/src/shared/api/ApiErrorHandler.ts)`
-3. `[authService.ts](file:///frontend/src/services/authService.ts)` / `[classService.ts](file:///frontend/src/services/classService.ts)` / `[examService.ts](file:///frontend/src/services/examService.ts)` / `[questionService.ts](file:///frontend/src/services/questionService.ts)` / `[reportService.ts](file:///frontend/src/services/reportService.ts)`
+1. `[formValidation.ts](file:///frontend/src/shared/lib/formValidation.ts)` (Bộ quy tắc Validate & Normalization phía FE UI)
+2. `[SubjectAutocomplete.tsx](file:///frontend/src/features/autocomplete/SubjectAutocomplete.tsx)` (Component gợi ý tìm kiếm môn học realtime)
+3. `[ClassAutocomplete.tsx](file:///frontend/src/features/autocomplete/ClassAutocomplete.tsx)` (Component gợi ý tìm kiếm lớp học realtime)
+4. `[api.ts](file:///frontend/src/shared/api/api.ts)` (Axios Interceptors client)
+5. `[ApiErrorHandler.ts](file:///frontend/src/shared/api/ApiErrorHandler.ts)`
+6. `[authService.ts](file:///frontend/src/services/authService.ts)` / `[classService.ts](file:///frontend/src/services/classService.ts)` / `[examService.ts](file:///frontend/src/services/examService.ts)` / `[questionService.ts](file:///frontend/src/services/questionService.ts)` / `[reportService.ts](file:///frontend/src/services/reportService.ts)`
+
 
 ### 💡 Kiến thức cần nắm:
 - Cấu hình Axios Base URL `http://localhost:8080`.

@@ -61,6 +61,11 @@ Dữ liệu lưu tại `storage/data/`, mỗi trường được đệm khoảng
 | `students.txt` | **134 bytes** | **Byte 132** | `MALOP`(15) \| `MASV`(10) \| `HO`(50) \| `TEN`(15) \| `PHAI`(4) \| `PASSWORD`(32) \| `S`(1) \| `\n`(1) |
 | `questions.txt` | **736 bytes** | **Byte 734** | `MAMH`(15) \| `ID`(10) \| `NOIDUNG`(300) \| `A`(100) \| `B`(100) \| `C`(100) \| `D`(100) \| `DAPAN`(1) \| `S`(1) \| `\n`(1) |
 | `scores.txt` | **35 bytes** | N/A | `MASV`(10) \| `MAMH`(15) \| `DIEM`(6) \| `\n`(1) |
+| `exam_history.txt` | Thay đổi | N/A | Lịch sử chi tiết câu hỏi và đáp án từng bài thi đã nộp |
+| `exam_sessions.txt` | Thay đổi | N/A | Ghi vết dở dang phiên thi (phòng chống rớt mạng / mất điện) |
+| `metadata.txt` | Text K/V | N/A | Lưu `SCHEMA_VERSION=2.0`, `LAST_QUESTION_ID`, bộ đếm `DELETED_*_COUNT` |
+| `SystemSettings.txt`| Text K/V | N/A | Lưu cài đặt runtime hệ thống (ví dụ: `fullscreenRequired=true`) |
+| `transaction.log` | Log Text | N/A | Nhật ký ghi vết các thao tác quan trọng để phục vụ chẩn đoán |
 
 > **💡 Lý do cờ `S` ở cuối**: Chỉ cần nhảy đến `offset + STATUS_OFFSET` và ghi **1 byte duy nhất** để "xóa" bản ghi — không đụng đến bất kỳ trường nào khác!
 
@@ -73,6 +78,7 @@ STATUS = '2' → SOFT_DELETED: Câu hỏi đã được thi (giữ cho lịch s�
 ```
 
 ---
+
 
 ## 📂 3. Cấu trúc Tệp Chỉ mục Nhị phân (.idx)
 

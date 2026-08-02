@@ -8,6 +8,10 @@ Tài liệu này tổng hợp toàn bộ các **HTTP REST API Endpoints** đư�
 
 - **Base URL**: `http://localhost:8080`
 - **Content-Type**: `application/json`
+- **Tập Quy tắc Kiểm định (2-Layer Validation)**:
+  - **MÃ** (`MALOP`, `MAMH`, `MASV`): Chỉ cho phép chữ, số và `-`. Tự động xóa space & biến thành **IN HOA**. Tra trùng trả về `422 Unprocessable`.
+  - **TÊN** (`TENLOP`, `TENMH`, `HO`, `TEN`): Tự động `toTitleCase` (viết hoa chữ cái đầu mỗi từ).
+  - **CÂU HỎI**: Nội dung `NOIDUNG` **giữ nguyên casing**, Options `A,B,C,D` dùng **Sentence Case**. Tự động từ chối nếu có 2 options trùng nội dung (so sánh chữ thường).
 - **Response Format Envelope**:
   - Khi thành công ($200, 201$):
     ```json
@@ -16,16 +20,17 @@ Tài liệu này tổng hợp toàn bộ các **HTTP REST API Endpoints** đư�
       "data": { ... }
     }
     ```
-  - Khi thất bại ($400, 401, 404, 500$):
+  - Khi thất bại ($400, 401, 404, 422, 500$):
     ```json
     {
       "success": false,
-      "message": "Chi tiết câu thông báo lỗi"
+      "message": "Chi tiết câu thông báo lỗi (vd: Các phương án lựa chọn không được trùng nhau!)"
     }
     ```
   - Thao tác Xóa thành công không có body ($204 No Content$).
 
 ---
+
 
 ## 2. Nhóm Xác thực & Hệ thống (Auth & Admin API)
 

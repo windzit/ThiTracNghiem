@@ -1,22 +1,22 @@
 MALOP          |TENLOP                                            |S
-D22CQCN01-N    |Lop CNTT 1 Khoa 2022                              |0
-D22CQCN02-N    |Lop CNTT 2 Khoa 2022                              |0
-D22CQCN03-N    |Lop CNTT 3 Khoa 2022                              |0
-D22CQCN04-N    |Lop CNTT 4 Khoa 2022                              |0
-D22CQCN05-N    |Lop CNTT 5 Khoa 2022                              |0
-D22CQVT01-N    |Lop Vien thong 1 Khoa 2022                        |0
-D22CQVT02-N    |Lop Vien thong 2 Khoa 2022                        |0
-D22CQVT03-N    |Lop Vien thong 3 Khoa 2022                        |0
-D22CQVT04-N    |Lop Vien thong 4 Khoa 2022                        |0
-D22CQVT05-N    |Lop Vien thong 5 Khoa 2022                        |0
-D22CQAT01-N    |Lop An toan thong tin 1 Khoa 2022                 |0
-D22CQAT02-N    |Lop An toan thong tin 2 Khoa 2022                 |0
-D22CQAT03-N    |Lop An toan thong tin 3 Khoa 2022                 |0
-D22CQAT04-N    |Lop An toan thong tin 4 Khoa 2022                 |0
-D22CQAT05-N    |Lop An toan thong tin 5 Khoa 2022                 |0
-D22CQMR01-N    |Lop Mang may tinh 1 Khoa 2022                     |0
-D22CQMR02-N    |Lop Mang may tinh 2 Khoa 2022                     |0
-D22CQMR03-N    |Lop Mang may tinh 3 Khoa 2022                     |0
-D22CQMR04-N    |Lop Mang may tinh 4 Khoa 2022                     |0
-D22CQMR05-N    |Lop Mang may tinh 5 Khoa 2022                     |0
-D22CQC08-N     |Cong Nghe Thong Tin 2022                          |1
+D22CQCN01-N    |Lop Cntt 1 Khoa 2022                              |0
+D22CQCN02-N    |Lop Cntt 2 Khoa 2022                              |0
+D22CQCN03-N    |Lop Cntt 3 Khoa 2022                              |0
+D22CQCN04-N    |Lop Cntt 4 Khoa 2022                              |0
+D22CQCN05-N    |Lop Cntt 5 Khoa 2022                              |0
+D22CQVT01-N    |Lop Vien Thong 1 Khoa 2022                        |0
+D22CQVT02-N    |Lop Vien Thong 2 Khoa 2022                        |0
+D22CQVT03-N    |Lop Vien Thong 3 Khoa 2022                        |0
+D22CQVT04-N    |Lop Vien Thong 4 Khoa 2022                        |0
+D22CQVT05-N    |Lop Vien Thong 5 Khoa 2022                        |0
+D22CQAT01-N    |Lop An Toan Thong Tin 1 Khoa 2022                 |0
+D22CQAT02-N    |Lop An Toan Thong Tin 2 Khoa 2022                 |0
+D22CQAT03-N    |Lop An Toan Thong Tin 3 Khoa 2022                 |0
+D22CQAT04-N    |Lop An Toan Thong Tin 4 Khoa 2022                 |0
+D22CQAT05-N    |Lop An Toan Thong Tin 5 Khoa 2022                 |0
+D22CQMR01-N    |Lop Mang May Tinh 1 Khoa 2022                     |0
+D22CQMR02-N    |Lop Mang May Tinh 2 Khoa 2022                     |0
+D22CQMR03-N    |Lop Mang May Tinh 3 Khoa 2022                     |0
+D22CQMR04-N    |Lop Mang May Tinh 4 Khoa 2022                     |0
+D22CQMR05-N    |Lop Mang May Tinh 5 Khoa 2022                     |0
+DSD            |Cong Nghe Thong Tin                               |0

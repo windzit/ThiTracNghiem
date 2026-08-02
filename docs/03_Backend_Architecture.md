@@ -196,7 +196,7 @@ Xóa câu hỏi ID=105:
 
 ---
 
-## 🔧 4. Cấu trúc Dữ liệu Phụ trợ
+## 🔧 4. Cấu trúc Dữ liệu & Utility Phụ trợ
 
 ### 4.1 Bảng Băm `HashTable<K, V>` — Index Accelerator
 
@@ -224,6 +224,18 @@ Xử lý đụng độ (Collision):
 - Tương tự `std::vector` nhưng tự triển khai thuần C++.
 - Tự động tăng dung lượng gấp đôi khi tràn (Capacity Doubling).
 - Dùng cho: Danh sách ID câu hỏi trong `ExamSession`, Danh sách offset lịch sử thi.
+
+### 4.3 Chuẩn hóa Chuỗi C++ `StringNormalizer` & Kiểm định `StorageValidator`
+
+**Tệp**: `include/StringNormalizer.h`, `include/StorageValidator.h`
+
+- **`StringNormalizer`**:
+  - `normalizeIdentifier()`: Xóa khoảng trắng, biến mã thành IN HOA (`" d22-cqcn01 "` → `"D22-CQCN01"`).
+  - `toTitleCase()`: Viết hoa chữ cái đầu mỗi từ cho tên Lớp, tên Môn, Họ và Tên sinh viên (`"cOng  nGhE"` → `"Cong Nghe"`).
+  - `normalizeHumanText()`: Trim và collapse space, giữ nguyên newline/tabs nguyên bản để validator phát hiện.
+- **`StorageValidator`**:
+  - Kiểm tra các ký tự cấm: dấu pipe `|`, tab `\t`, xuống dòng `\r`, `\n`, control chars.
+  - `hasDuplicateOptionsAfterNormalization()`: Chuyển 4 phương án câu hỏi về chữ thường (`std::tolower`) để phát hiện và ngăn chặn trùng lặp đáp án.
 
 ---
 
@@ -266,3 +278,6 @@ RAM → Đĩa theo định dạng `FIELD1(n bytes) | FIELD2(m bytes) | ... | STA
 | [Score.h](file:///include/Score.h) / [.cpp](file:///src/Score.cpp) | Struct `DiemThi`, `dsDiemThi`, Class `Score` |
 | [HashTable.h](file:///include/HashTable.h) | Bảng Băm Open Addressing tự triển khai |
 | [DArray.h](file:///include/DArray.h) | Mảng động tự triển khai |
+| [StringNormalizer.h](file:///include/StringNormalizer.h) / [.cpp](file:///src/StringNormalizer.cpp) | Bộ chuẩn hóa chuỗi Backend C++ |
+| [StorageValidator.h](file:///include/StorageValidator.h) / [.cpp](file:///src/StorageValidator.cpp) | Bộ kiểm định dữ liệu Backend C++ |
+

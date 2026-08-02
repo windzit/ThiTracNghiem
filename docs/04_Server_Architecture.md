@@ -186,6 +186,32 @@ NodeMH* find_subject_smart(const std::string& mamh);
 | [ReportHandler.cpp](file:///server/handlers/ReportHandler.cpp) | `GET /api/reports/exam`, `GET /api/reports/scoreboard` | Xem chi tiết bài thi, Bảng điểm lớp |
 | [AdminHandler.cpp](file:///server/handlers/AdminHandler.cpp) | `POST /api/admin/save`, `POST /api/admin/rebuild-used` | Lưu khẩn cấp, Cấu hình hệ thống |
 
+### 5.5 Luồng Validate & Normalize Chuẩn hóa trong Handler
+
+Mọi Handler ghi (`POST`, `PUT`) đều tuân theo quy trình kiểm định 4 bước cố định:
+
+```
+[Request JSON từ Client]
+         │
+         ▼
+[Bước 1: Parse JSON → C++ Struct]
+         │ (Đọc fields từ body, gán vào struct Lop/SinhVien/MonHoc/CauHoi)
+         ▼
+[Bước 2: StringNormalizer]
+         │ ├── SinhVien: MASV -> normalizeIdentifier (IN HOA), HO/TEN -> toTitleCase
+         │ └── CauHoi: NOIDUNG -> normalizeHumanText (giữ nguyên hoa/thường người dùng)
+         ▼
+[Bước 3: StorageValidator]
+         │ ├── Kiểm tra chứa ký tự cấm (|, tab, \r, \n)
+         │ └── Kiểm tra trùng phương án (hasDuplicateOptionsAfterNormalization)
+         ▼
+[Bước 4: Business Rule Check & RAM Insert]
+         │ ├── Tra cứu trùng Mã trên RAM (HashTable/BST)
+         │ └── Chèn vào RAM & gọi StorageManager sync xuống đĩa
+         ▼
+[Response 200/201 Envelope]
+```
+
 ---
 
 ## 🔧 6. Cấu trúc JSON Response Chuẩn
@@ -223,4 +249,7 @@ error_response(res, "Mã sinh viên đã tồn tại!", 422);
 | [ServerContext.h](file:///server/ServerContext.h) / [.cpp](file:///server/ServerContext.cpp) | Khai báo shared state, locking macros, JSON helpers |
 | [RouteRegistry.h](file:///server/RouteRegistry.h) / [.cpp](file:///server/RouteRegistry.cpp) | Đăng ký tất cả HTTP API Endpoints |
 | [ServerBootstrap.h](file:///server/ServerBootstrap.h) / [.cpp](file:///server/ServerBootstrap.cpp) | Khởi tạo, load dữ liệu, mở cổng 8080 |
+| [StringNormalizer.h](file:///include/StringNormalizer.h) / [.cpp](file:///src/StringNormalizer.cpp) | Bộ chuẩn hóa chuỗi C++ Backend |
+| [StorageValidator.h](file:///include/StorageValidator.h) / [.cpp](file:///src/StorageValidator.cpp) | Bộ kiểm định hợp lệ dữ liệu C++ Backend |
 | Thư mục [server/handlers/](file:///server/handlers/) | Tất cả 8 Handler files |
+

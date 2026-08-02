@@ -36,7 +36,7 @@ Tài liệu này tổng hợp và phân định rõ ràng **Trách nhiệm Đơn
 | `IndexManager` | `[IndexManager.h](file:///include/IndexManager.h)` | Singleton quản lý Bảng băm chỉ mục RAM và nạp/ghi/rebuild các tệp nhị phân `.idx`. | `auditAndLoadIndexes()`, `rebuildAllIndexes()`, `loadQuestionIndex()`, `getStudentOffset()` |
 | `Storage.cpp` | `[Storage.cpp](file:///src/Storage.cpp)` | Quản lý vòng đời lưu trữ khởi động, in Báo cáo Khởi động Server (`PrintStartupReport`), đo thời gian nạp và Audit tính nhất quán tập tin đĩa. | `LoadAllData()`, `SaveAllData()`, `PrintStartupReport()` |
 | `StorageDeserializer` | `[StorageDeserializer.h](file:///include/StorageDeserializer.h)` | Parse dòng text pipe-delimited fixed-length thành đối tượng C++. | `deserializeClass()`, `deserializeStudent()`, `deserializeQuestion()` |
-| `StorageValidator` | `[StorageValidator.h](file:///include/StorageValidator.h)` | Kiểm tra tính hợp lệ của định dạng bản ghi dòng text. | `validateClassRecord()`, `validateStudentRecord()` |
+| `StorageValidator` | `[StorageValidator.h](file:///include/StorageValidator.h)` | Kiểm tra tính hợp lệ của định dạng bản ghi, ký tự cấm (`\|`, `\r`, `\n`, `\t`), và phát hiện trùng đáp án (`hasDuplicateOptionsAfterNormalization`). | `validateClass()`, `validateStudent()`, `validateSubject()`, `validateQuestion()`, `hasDuplicateOptionsAfterNormalization()` |
 | `StorageVerifier` | `[StorageVerifier.h](file:///include/StorageVerifier.h)` | Xác minh tính toàn vẹn giữa chỉ mục `.idx` và dữ liệu tệp `.txt`. | `verifyStudentIndex()`, `verifyQuestionIndex()` |
 | `StorageIntegrityChecker` | `[StorageIntegrityChecker.h](file:///include/StorageIntegrityChecker.h)` | Kiểm tra toàn diện hệ thống tập tin đĩa trước khi khởi động. | `checkAll()` |
 | `PathResolver` | `[PathResolver.h](file:///include/PathResolver.h)` | Quản lý đường dẫn tuyệt đối/tương đối tới thư mục `storage/`. | `getDataDirPath()`, `getIndexDirPath()`, `getFilePath()`, `getIndexPath()` |
@@ -61,18 +61,21 @@ Tài liệu này tổng hợp và phân định rõ ràng **Trách nhiệm Đơn
 
 ---
 
-## 4. Nhóm Cấu trúc Dữ liệu Phụ trợ (Utilities)
+## 4. Nhóm Cấu trúc Dữ liệu Phụ trợ & Frontend Validation (Utilities)
 
-| Class Template | File Header | Trách nhiệm chính |
+| Class / Module | File Header / Source | Trách nhiệm chính |
 | :--- | :--- | :--- |
 | `HashTable<K, V>` | `[HashTable.h](file:///include/HashTable.h)` | Bảng băm Open Addressing Linear Probing $O(1)$ dùng cho Index Accelerator. |
 | `DArray<T>` | `[DArray.h](file:///include/DArray.h)` | Mảng động tự co giãn dung lượng tương tự `std::vector`. |
 | `LinkedList<T>` | `[LinkedList.h](file:///include/LinkedList.h)` | Lớp bao đóng Danh sách liên kết đơn tổng quát. |
-| `Queue<T>` | `[Queue.h](file:///include/Queue.h)` | Cấu trúc Hàng đợi (FIFO) phục vụ duyệt cây. |
-| `Stack<T>` | `[Stack.h](file:///include/Stack.h)` | Cấu trúc Ngăn xếp (LIFO) phục vụ duyệt cây. |
-| `StringNormalizer` | `[StringNormalizer.h](file:///include/StringNormalizer.h)` | Chuẩn hóa chuỗi (Xóa khoảng trắng thừa, viết hoa mã). |
+
+| `StringNormalizer` | `[StringNormalizer.h](file:///include/StringNormalizer.h)` | Chuẩn hóa chuỗi C++ Backend (`normalizeIdentifier`, `toTitleCase`, `normalizeHumanText`, `normalizeClass`, `normalizeStudent`, `normalizeSubject`, `normalizeQuestion`). |
+| `formValidation.ts` | `[formValidation.ts](file:///frontend/src/shared/lib/formValidation.ts)` | Kiểm định và chuẩn hóa dữ liệu Frontend React (`validateClassCode`, `validateStudentId`, `validateSubjectCode`, `normalizeQuestionContent`, `normalizeQuestionOption`...). |
+| `SubjectAutocomplete` | `[SubjectAutocomplete.tsx](file:///frontend/src/features/autocomplete/SubjectAutocomplete.tsx)` | Component ô gợi ý tìm kiếm môn học tự động phía Frontend (lọc realtime theo mã/tên môn, diacritics removal, highlight từ khóa, keyboard navigation). |
+| `ClassAutocomplete` | `[ClassAutocomplete.tsx](file:///frontend/src/features/autocomplete/ClassAutocomplete.tsx)` | Component ô gợi ý tìm kiếm lớp học tự động phía Frontend (lọc realtime theo mã/tên lớp, diacritics removal, highlight từ khóa, giữ icon ChevronDown). |
 
 ---
+
 
 ## 5. Sơ đồ Mối quan hệ giữa các Thành phần
 

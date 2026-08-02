@@ -47,10 +47,10 @@ Hiểu và tự triển khai được cơ chế Đọc/Ghi bản ghi cố địn
 
 ---
 
-## 3. Pha 3: Triển khai Logic Nghiệp vụ Miền (Domain Business Rules)
+## 3. Pha 3: Triển khai Logic Nghiệp vụ Miền & kiểm định 2 Tầng
 
 ### 🎯 Mục tiêu:
-Ràng buộc chặt chẽ tính hợp lệ của dữ liệu trước khi thực thi các thao tác.
+Ràng buộc chặt chẽ tính hợp lệ của dữ liệu trước khi thực thi các thao tác thông qua bộ kiểm định 2 tầng.
 
 ### 📋 Nhiệm vụ thực hành:
 1. **Kiểm tra Điều kiện Xóa**:
@@ -58,7 +58,10 @@ Ràng buộc chặt chẽ tính hợp lệ của dữ liệu trước khi thực
    - Xóa Sinh viên: Kiểm tra danh sách điểm thi có rỗng hay không.
    - Xóa Môn học: Kiểm tra cờ `used == false`.
    - Xóa Câu hỏi: Phân luồng xóa cứng (`used == false`) vs xóa mềm (`used == true`).
-2. **Thi trắc nghiệm & Chấm điểm**:
+2. **Triển khai Chuẩn hóa & Kiểm định 2 Tầng**:
+   - Viết các hàm normalize ở FE (`formValidation.ts`) và BE (`StringNormalizer.cpp`).
+   - Xử lý phân biệt: Mã -> UPPERCASE & no space, Tên -> Title Case, Câu hỏi -> GIỮ NGUYÊN casing, Options -> Sentence Case & so sánh trùng bằng lowercase.
+3. **Thi trắc nghiệm & Chấm điểm**:
    - Thuật toán tráo ngẫu nhiên câu hỏi (Fisher-Yates Shuffle).
    - Quản lý phiên thi `ExamSession` và tính toán thời gian trôi qua.
    - Chấm điểm tự động thang điểm 10: $\text{Điểm} = (\text{Số câu đúng} \times 10.0) / \text{Tổng số câu}$.
@@ -88,5 +91,7 @@ Dùng `httplib` dựng Web Server C++ đa luồng an toàn.
 - [ ] Bạn có thể vẽ thuật toán xóa nút trên Cây BST Môn học trên bảng không?
 - [ ] Bạn có thể giải thích tại sao đọc tệp `.txt` định dạng cố định qua offset trong `.idx` lại đạt $O(1)$ không?
 - [ ] Bạn có thể giải thích cơ chế RWLock làm thế nào để ngăn chặn dữ liệu bị hỏng khi 10 sinh viên nộp bài cùng một giây không?
+- [ ] Bạn có thể giải thích quy trình Validate 2 tầng (FE + BE) và sự khác biệt giữa `Title Case` tên môn và `Sentence Case` phương án câu hỏi không?
 
-Nếu bạn trả lời trôi chảy tất cả 4 câu hỏi trên, bạn đã sẵn sàng bảo vệ đồ án đạt điểm tối đa!
+Nếu bạn trả lời trôi chảy tất cả 5 câu hỏi trên, bạn đã sẵn sàng bảo vệ đồ án đạt điểm tối đa!
+

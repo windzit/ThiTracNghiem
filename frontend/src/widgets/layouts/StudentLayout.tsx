@@ -1,4 +1,4 @@
-﻿import { useNavigate, useLocation } from "react-router-dom"
+import { useNavigate, useLocation } from "react-router-dom"
 import { useState, useEffect, useRef } from "react"
 import {
   Home,
@@ -29,9 +29,7 @@ export default function StudentLayout({ children, breadcrumb }: StudentLayoutPro
   const navigate = useNavigate()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [avatarOpen, setAvatarOpen] = useState(false)
   const [isExamActive, setIsExamActive] = useState(false)
-  const avatarRef = useRef<HTMLDivElement>(null)
 
   // Check if student has an active exam in progress (to hide Logout button)
   useEffect(() => {
@@ -45,17 +43,6 @@ export default function StudentLayout({ children, breadcrumb }: StudentLayoutPro
         setIsExamActive(false)
       }
     })
-  }, [])
-
-  // Close avatar dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (avatarRef.current && !avatarRef.current.contains(event.target as Node)) {
-        setAvatarOpen(false)
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
   const handleLogout = async () => {
@@ -169,76 +156,22 @@ export default function StudentLayout({ children, breadcrumb }: StudentLayoutPro
               unreadCount={0}
             />
 
-            {/* Avatar Dropdown */}
-            <div className="relative" ref={avatarRef}>
-              <button
-                onClick={() => setAvatarOpen(!avatarOpen)}
-                className="flex items-center gap-2 lg:gap-3 pl-2 lg:pl-3 pr-1 lg:pr-2 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <div className="w-8 h-8 lg:w-9 lg:h-9 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                  <User className="h-4 w-4 lg:h-5 lg:w-5 text-gray-500" />
+            {/* Student Info Badge (Static Vertical Info) */}
+            <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-gray-50/80 border border-gray-200/60">
+              <div className="w-8 h-8 lg:w-9 lg:h-9 rounded-full bg-red-50 border border-red-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                <User className="h-4 w-4 lg:h-5 lg:w-5 text-[#D9272B]" />
+              </div>
+              <div className="text-left hidden lg:block">
+                <div className="text-sm font-bold text-gray-900 leading-tight">
+                  {authService.getCurrentUser()?.name || authService.getCurrentUser()?.id || "Sinh viên"}
                 </div>
-                <div className="text-left hidden lg:block">
-                  <div className="text-sm font-semibold text-gray-900">
-                    {authService.getCurrentUser()?.name || authService.getCurrentUser()?.id || "Sinh viên"}
-                  </div>
-                  <div className="text-xs text-gray-400">
-                    {authService.getCurrentUser()?.id ? `SV: ${authService.getCurrentUser()?.id}` : "Sinh viên"}
-                  </div>
-                </div>
-                <ChevronDown className="h-4 w-4 text-gray-400 hidden lg:block" />
-              </button>
-
-              {avatarOpen && (
-                <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl border border-gray-200 shadow-lg z-50 overflow-hidden">
-                  {/* User Info Header */}
-                  <div className="px-4 py-3 border-b border-gray-100">
-                    <div className="text-sm font-semibold text-gray-900">
-                      {authService.getCurrentUser()?.name || authService.getCurrentUser()?.id || "Sinh viên"}
-                    </div>
-                    <div className="text-xs text-gray-400">
-                      {authService.getCurrentUser()?.id ? `Mã SV: ${authService.getCurrentUser()?.id}` : "Sinh viên"}
-                    </div>
-                  </div>
-
-                  {/* Menu Items */}
-                  <div className="py-1">
-                    <button
-                      onClick={() => {
-                        setAvatarOpen(false)
-                        navigate("/student/profile")
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      <User className="h-4 w-4" />
-                      Thông tin tài khoản
-                    </button>
-                    <button
-                      disabled
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-400 cursor-not-allowed"
-                    >
-                      <Lock className="h-4 w-4" />
-                      Đổi mật khẩu
-                    </button>
-                  </div>
-
-                  {/* Logout (Hide if in Exam) */}
-                  {!isExamActive && (
-                    <div className="border-t border-gray-100 py-1">
-                      <button
-                        onClick={() => {
-                          setAvatarOpen(false)
-                          handleLogout()
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        Đăng xuất
-                      </button>
-                    </div>
+                <div className="text-xs text-gray-500 mt-0.5 space-y-0.5 font-medium">
+                  <div>MSSV: {authService.getCurrentUser()?.id || "---"}</div>
+                  {authService.getCurrentUser()?.classCode && (
+                    <div>Lớp: {authService.getCurrentUser()?.classCode}</div>
                   )}
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </header>

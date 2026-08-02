@@ -1,6 +1,29 @@
 # 01. Tổng quan Hệ thống (System Overview)
 
-Tài liệu này cung cấp cái nhìn toàn cảnh về hệ thống **Thi Trắc Nghiệm C++**, bao gồm yêu cầu đề tài gốc, kiến trúc 3 tầng tổng thể và các quy tắc nghiệp vụ (Business Rules) áp dụng xuyên suốt hệ thống.
+Tài liệu này cung cấp cái nhìn toàn cảnh về hệ thống **Thi Trắc Nghiệm C++**, bao gồm yêu cầu đề tài gốc, kiến trúc 3 tầng tổng thể, cơ chế kiểm định dữ liệu 2 tầng (2-Layer Validation & Normalization) và các quy tắc nghiệp vụ (Business Rules) áp dụng xuyên suốt hệ thống.
+
+---
+
+## 💡 Phép so sánh Trực quan: Hệ thống Giống như "Sân bay Quốc tế"
+
+Để người không chuyên về CNTT cũng có thể hình dung ngay:
+
+```
+✈️ SÂN BAY QUỐC TẾ                      🖥️ HỆ THỐNG THI TRẮC NGHIỆM
+┌────────────────────────────────┐     ┌────────────────────────────────┐
+│ 1. Cổng An ninh Ban đầu        │ ──► │ 1. Frontend (React + TS)       │
+│    (Kiểm tra vé, xóa khoảng    │     │    (Xóa space thừa, sửa viết   │
+│     trắng, tự viết hoa mã)     │     │     hoa UI, báo lỗi ngay lập tức)│
+├────────────────────────────────┤     ├────────────────────────────────┤
+│ 2. Hải quan & Máy quét Hải quan│ ──► │ 2. Backend Server (C++)        │
+│    (Kiểm tra hộ chiếu trùng,   │     │    (Chuẩn hóa tuyệt đối, tra    │
+│     lưu hồ sơ vào máy chủ)     │     │     HashTable trùng lặp O(1))   │
+├────────────────────────────────┤     ├────────────────────────────────┤
+│ 3. Kho Lưu trữ Hồ sơ          │ ──► │ 3. Storage TXT + IDX           │
+│    (Ghi sổ định dạng cố định,  │     │    (Bản ghi cố định độ dài,    │
+│     có mục lục tra cứu nhanh)  │     │     truy xuất byte offset O(1)) │
+└────────────────────────────────┘     └────────────────────────────────┘
+```
 
 ---
 
@@ -30,97 +53,92 @@ Hệ thống được thiết kế để phục vụ công tác quản lý và t
 
 ---
 
-## 2. Kiến trúc Tổng thể 3 Tầng (3-Tier Architecture)
+## 2. Kiến trúc Tổng thể 3 Tầng & Kiểm soát 2 Tầng (2-Layer Security)
 
 ```
-[ Frontend: React + TypeScript + Vite ]
-         │ (HTTP REST API / JSON)
+[ TẦNG 1: Frontend - React + TypeScript + Vite ]
+   ├── Client-Side Form Normalization (toTitleCase, normalizeIdentifier...)
+   └── Client-Side Form Validation (formValidation.ts - phản hồi tức thì UI)
+         │ (HTTP REST API / JSON Envelope)
          ▼
-[ Server: C++ httplib + RouteRegistry + Handlers ]
-         │ (C++ Domain Method Calls + RWLock Synchronization)
+[ TẦNG 2: Web Server C++ - httplib + RouteRegistry + Handlers ]
+   ├── StringNormalizer (Chuẩn hóa C++ backend trước khi xử lý)
+   ├── StorageValidator (Kiểm tra ký tự cấm, độ dài, trùng đáp án)
+   └── DB_READ_LOCK / DB_WRITE_LOCK (Đồng bộ đa luồng safe)
+         │ (Direct File Offset seekg / seekp O(1))
          ▼
-[ Core Backend: BST, Pointer Array, LinkedList, Custom HashTable ]
-         │ (Direct File Offset seekg / seekp)
-         ▼
-[ Storage Engine: Pipe-Delimited Fixed-Length TXT + Binary Index IDX ]
-```
-
-- **Tầng 1: Presentation (Frontend)**
-  - Giao diện web hiện đại viết bằng **React + TypeScript + Vite**.
-  - Gọi API backend thông qua Axios client (`[api.ts](file:///frontend/src/shared/api/api.ts)`).
-  - Không truy xuất trực tiếp file hay cơ sở dữ liệu.
-
-- **Tầng 2: Application / Server (Web Server C++)**
-  - Web Server multithreaded viết bằng C++ xây dựng trên thư viện `[httplib.h](file:///include/httplib.h)`.
-  - [RouteRegistry.cpp](file:///server/RouteRegistry.cpp) định nghĩa các HTTP Rest Endpoints.
-  - Các Handlers (`AuthHandler`, `ClassHandler`, `StudentHandler`, `SubjectHandler`, `QuestionHandler`, `ExamHandler`, `ReportHandler`) tiếp nhận request JSON, kiểm tra quyền và gọi đến Core Business Logic.
-  - Đồng bộ đa luồng an toàn bằng `std::shared_mutex` (`DB_READ_LOCK` và `DB_WRITE_LOCK`).
-
-- **Tầng 3: Core Domain & Storage Engine (Backend & Storage)**
-  - Bộ nhớ RAM: Dữ liệu được nạp lên các Cấu trúc dữ liệu C++ thuần (BST, Mảng con trỏ, DS liên kết đơn).
-  - Lưu trữ đĩa: Định dạng tệp văn bản cố định độ dài phân cách dấu Pipe `|` (`.txt`) kết hợp tệp chỉ mục nhị phân (`.idx`) tăng tốc truy vấn $O(1)$ qua `[StorageManager](file:///include/StorageManager.h)` và `[IndexManager](file:///include/IndexManager.h)`.
-
----
-
-## 2.1 Bí quyết Tốc độ: So sánh Khởi động Với & Không có `.idx`
-
-Đây là điểm **độc đáo nhất** của hệ thống — giải thích tại sao Server khởi động cực nhanh dù có hàng trăm nghìn bản ghi.
-
-```
-🐢 KHÔNG CÓ .idx (Cách cổ điển):
-   Server khởi động
-   ├── Mở students.txt
-   ├── Đọc từng ký tự từ đầu đến cuối file (O(N))
-   ├── Gọi split('|'), trim(), ép kiểu... với MỖI dòng
-   └── 200 SV ≈ 50ms | 20,000 SV ≈ 5,000ms | 1,000,000 SV ≈ 4 phút ❌
-
-⚡ CÓ .idx (Cách của hệ thống này):
-   Server khởi động
-   ├── Đọc student.idx (nhị phân, cực nhỏ)
-   ├── Nạp ngay vào HashTable RAM: "N21001"→26800, "N21002"→26934 ...
-   └── 200 SV ≈ 2ms | 20,000 SV ≈ 15ms | 1,000,000 SV ≈ 300ms ✅
-```
-
-**Khi có `.idx` rồi → Mọi thao tác tra cứu về sau đều $O(1)$:**
-```
-Muốn lấy thông tin SV "N21001"?
-  HashTable.get("N21001") → offset=26800 (nanosecond!)
-  file.seekg(26800)        → Nhảy thẳng đến Byte 26800
-  Đọc đúng 134 bytes       → Xong! (Không đọc bất kỳ byte nào khác)
+[ TẦNG 3: Core Domain & Storage Engine ]
+   ├── RAM: BST, Mảng con trỏ, DS liên kết, Open Addressing HashTable
+   └── DISK: Pipe-Delimited Fixed-Length TXT + Binary Index IDX
 ```
 
 ---
 
-## 3. Quy tắc Nghiệp vụ (Business Rules)
+## 3. Quy tắc Kiểm định & Chuẩn hóa Dữ liệu (Validation & Normalization Rules)
 
-### 3.1 Quy định Khóa chính & Định dạng Dữ liệu
-- **Mã Lớp (`MALOP`)**: Không được rỗng, viết hoa, không khoảng trắng, tối đa 15 ký tự. Là duy nhất trong toàn bộ hệ thống.
-- **Mã Sinh viên (`MASV`)**: Không được rỗng, viết hoa, không khoảng trắng, tối đa 10 ký tự. Là duy nhất trong toàn hệ thống.
-- **Mã Môn học (`MAMH`)**: Không được rỗng, viết hoa, không khoảng trắng, tối đa 15 ký tự. Duy nhất trên Cây BST Môn học.
-- **ID Câu hỏi (`ID`)**: Số nguyên dương ($1, 2, 3, \dots$). Tự động tăng toàn cục (Global Auto-Increment) bởi `StorageManager::getNextQuestionID()`.
+Hệ thống áp dụng nghiêm ngặt **5 nhóm quy tắc** tại cả 2 tầng Frontend và Backend:
 
-### 3.2 Quy tắc Xóa & Ràng buộc Dữ liệu (Integrity Rules)
+### 3.1 Nhóm 1: MÃ (Mã Lớp `MALOP`, Mã Môn `MAMH`, Mã Sinh viên `MASV`)
+- **Ký tự cho phép**: Chỉ gồm chữ cái (`A-Z`, `a-z`), chữ số (`0-9`) và dấu gạch ngang (`-`). Không cho phép khoảng trắng hay ký tự đặc biệt khác.
+- **Tự động chuẩn hóa**: Tự động xóa sạch khoảng trắng (ở đầu, cuối, ở giữa) và chuyển toàn bộ thành **IN HOA** (Ví dụ: `" d 22-cq cn01 "` → `"D22-CQCN01"`).
+- **Ràng buộc duy nhất**: Bắt buộc tra cứu Bảng băm / Cây BST để đảm bảo không trùng lặp trước khi tạo hoặc cập nhật.
+
+### 3.2 Nhóm 2: TÊN MÔN HỌC / TÊN LỚP
+- **Ký tự cho phép**: Chữ cái (bao gồm cả tiếng Việt có dấu), chữ số, khoảng trắng, dấu `-`, `_`, `(`, `)`.
+- **Tự động chuẩn hóa (Title Case)**: Xóa khoảng trắng đầu/cuối, gộp nhiều khoảng trắng liên tiếp thành 1 khoảng trắng duy nhất, viết hoa chữ cái đầu tiên của **mỗi từ** (Ví dụ: `"cOng   nGhE  thOng   tin"` → `"Cong Nghe Thong Tin"`).
+- **So sánh trùng lặp**: Backend thực hiện kiểm tra trùng bằng chuỗi chuẩn hóa (trim + collapse space + lowercase).
+
+### 3.3 Nhóm 3: TÊN SINH VIÊN (`HO` & `TEN`)
+- **Ký tự cho phép**: Chỉ cho phép chữ cái tiếng Việt và khoảng trắng. Không chứa chữ số hay ký tự đặc biệt.
+- **Tự động chuẩn hóa (Title Case)**: Tương tự nhóm 2, viết hoa chữ cái đầu mỗi từ (Ví dụ: `"ngUyEn   vaN   aN"` → `"Nguyen Van An"`).
+
+### 3.4 Nhóm 4: CÂU HỎI THI & PHƯƠNG ÁN CHỌN
+- **Nội dung câu hỏi (`NOIDUNG`)**:
+  - Cho phép tất cả ký tự văn bản thông thường (trừ cấm dấu pipe `|`, tab `\t`, xuống dòng `\r`, `\n`).
+  - Xóa khoảng trắng thừa (trim + collapse spaces).
+  - **GIỮ NGUYÊN nội dung và viết hoa/thường nguyên bản của người dùng** (KHÔNG tự ý viết hoa chữ cái đầu hay ép kiểu).
+- **Phương án chọn (`A`, `B`, `C`, `D`)**:
+  - Xóa khoảng trắng thừa (trim + collapse spaces).
+  - **Sentence Case**: Chỉ tự động viết hoa chữ cái đầu tiên của từ đầu tiên trong câu (Ví dụ: `"phuong an   chuc   nang"` → `"Phuong an chuc nang"`).
+- **Kiểm tra trùng đáp án**: Backend (`StorageValidator::hasDuplicateOptionsAfterNormalization`) tự động chuyển cả 4 đáp án về chữ thường để so sánh, phát hiện và từ chối nếu có 2 đáp án trùng nội dung nhau.
+
+### 3.5 Nhóm 5: MẬT KHẨU (`PASSWORD`)
+- **Giữ nguyên 100%**: Tuyệt đối **KHÔNG trim**, KHÔNG viết hoa hay biến đổi ký tự của mật khẩu người dùng nhập.
+
+---
+
+## 4. Các Tệp Quản lý Hệ thống & Metadata Đĩa
+
+Ngoài các tệp dữ liệu thực thể chính (`classes.txt`, `students.txt`, `subjects.txt`, `questions.txt`, `scores.txt`), hệ thống còn tự động duy trì 3 tệp quản lý đặc biệt:
+
+| Tệp Hệ thống | Đường dẫn | Trách nhiệm |
+| :--- | :--- | :--- |
+| **`metadata.txt`** | `storage/data/metadata.txt` | Lưu trạng thái toàn cục: `LAST_QUESTION_ID` (ID câu hỏi lớn nhất để cấp phát tự động không trùng), bộ đếm số bản ghi đã xóa mềm `DELETED_*_COUNT` để kích hoạt Compaction, và `SCHEMA_VERSION=2.0`. Đồng bộ tức thì xuống đĩa ngay khi khởi động hoặc thêm câu hỏi. |
+| **`SystemSettings.txt`** | `storage/data/SystemSettings.txt` | Lưu các cài đặt hệ thống runtime (ví dụ: cờ `fullscreenRequired` bắt buộc sinh viên thi toàn màn hình). |
+| **`transaction.log`** | `storage/data/transaction.log` | Nhật ký ghi vết các thao tác quan trọng để phục vụ kiểm tra và chẩn đoán lỗi. |
+
+---
+
+## 5. Quy tắc Nghiệp vụ Ràng buộc (Integrity Rules)
+
 1. **Xóa Lớp**: Chỉ được xóa lớp nếu danh sách sinh viên của lớp đó rỗng (`dssinhvien.getRoot() == nullptr`).
 2. **Xóa Sinh viên**: Chỉ được xóa sinh viên nếu sinh viên đó chưa thi môn nào (`dsdiemthi.empty() == true`).
 3. **Xóa Môn học**: Chỉ được xóa môn học nếu không có câu hỏi nào thuộc môn học đó đã từng được thi (`MonHoc::used == false`).
 4. **Xóa Câu hỏi**:
-   - Nếu câu hỏi **chưa thi** (`used == false`): Có thể xóa cứng (Physical Delete - xóa khỏi DS liên kết đơn).
-   - Nếu câu hỏi **đã từng thi** (`used == true`): Không xóa cứng mà đánh dấu xóa mềm (`status = '2'`). Câu hỏi bị xóa mềm sẽ không bao giờ xuất hiện trong đề thi mới, nhưng vẫn được bảo tồn để phục vụ xem lại chi tiết bài thi lịch sử.
-
-### 3.3 Quy tắc Thi & Chấm điểm
-- Mẫu đề thi được tạo ngẫu nhiên từ ngân hàng câu hỏi của môn học tương ứng.
-- Chỉ các câu hỏi hợp lệ (`status == '0'`) mới được lấy vào đề thi.
-- Sinh viên làm bài thi theo phiên (`ExamSession`), đáp án được lưu tạm liên tục lên đĩa `exam_sessions.txt` để phòng chống mất dữ liệu khi mất điện hoặc rớt mạng.
-- Thang điểm thi: Thang điểm 10. Điểm mỗi câu hỏi = $10.0 / N$ (với $N$ là tổng số câu hỏi trong đề thi). Điểm được làm tròn 2 chữ số thập phân.
-- Mỗi sinh viên chỉ được thi 1 môn duy nhất 1 lần (nếu đã có điểm trong `dsDiemThi` thì không được thi lại môn đó).
+   - Nếu câu hỏi **chưa thi** (`used == false`): Xóa cứng (Physical Delete - gỡ khỏi DS liên kết RAM, ghi cờ `'1'` trên đĩa).
+   - Nếu câu hỏi **đã từng thi** (`used == true`): Xóa mềm (Soft Delete - giữ nút RAM, ghi cờ `'2'` trên đĩa). Câu hỏi xóa mềm bị ẩn khỏi đề thi mới nhưng vẫn phục vụ xem lại lịch sử làm bài.
 
 ---
 
-## 4. Các File Mã Nguồn Liên quan
+## 6. Các File Mã Nguồn Liên quan
 
-- [CommonTypes.h](file:///include/CommonTypes.h): Khai báo `StorageConfig` với kích thước bản ghi cố định pipe-delimited và kiểu dữ liệu chung.
-- [Class.h](file:///include/Class.h): Định nghĩa struct `Lop`, `dsLop` và class `Class`.
-- [Student.h](file:///include/Student.h): Định nghĩa struct `SinhVien`, `dsSinhVien` và class `Student`.
-- [Subject.h](file:///include/Subject.h): Định nghĩa struct `MonHoc`, `NodeMH` và class `Subject`.
-- [Question.h](file:///include/Question.h): Định nghĩa struct `CauHoi`, `dsCHT` và class `Question`.
-- [Score.h](file:///include/Score.h): Định nghĩa struct `DiemThi`, `dsDiemThi` và class `Score`.
+- [formValidation.ts](file:///frontend/src/shared/lib/formValidation.ts): Bộ quy tắc Validate và Normalization phía Frontend React.
+- [StringNormalizer.h](file:///include/StringNormalizer.h) / [.cpp](file:///src/StringNormalizer.cpp): Bộ chuẩn hóa chuỗi phía C++ Backend.
+- [StorageValidator.h](file:///include/StorageValidator.h) / [.cpp](file:///src/StorageValidator.cpp): Bộ kiểm tra ký tự cấm và tính hợp lệ dữ liệu Backend.
+- [CommonTypes.h](file:///include/CommonTypes.h): Khai báo `StorageConfig` với kích thước bản ghi cố định pipe-delimited và cờ trạng thái.
+- [Class.h](file:///include/Class.h): Struct `Lop`, `dsLop` và class `Class`.
+- [Student.h](file:///include/Student.h): Struct `SinhVien`, `dsSinhVien` và class `Student`.
+- [Subject.h](file:///include/Subject.h): Struct `MonHoc`, `NodeMH` và class `Subject`.
+- [Question.h](file:///include/Question.h): Struct `CauHoi`, `dsCHT` và class `Question`.
+- [Score.h](file:///include/Score.h): Struct `DiemThi`, `dsDiemThi` và class `Score`.
+

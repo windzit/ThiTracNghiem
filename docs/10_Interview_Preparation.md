@@ -142,3 +142,20 @@ Xóa một nút có 3 trường hợp:
 - Dạng text: `"40480"` chiếm **5 bytes** nhưng cần parse/convert → Tốn CPU.
 - Với 1 triệu bản ghi: Binary `.idx` ≈ `8MB`, Text `.idx` ≈ `15-20MB` + chi phí parse.
 - Đọc binary trực tiếp vào memory bằng `fread()` → Tối đa hóa tốc độ nạp khởi động.
+
+---
+
+## 📌 Chủ đề 5: Kiểm định & Chuẩn hóa Dữ liệu (Validation & Normalization)
+
+### ❓ Câu 18: Tại sao hệ thống lại dùng cơ chế kiểm định 2 tầng (FE + BE)?
+
+**Trả lời tốt:**
+- **Tầng 1 (Frontend)**: Phản hồi tức thì cho người dùng trên giao diện web (nhập sai mã hay tên báo đỏ ngay), giúp trải nghiệm mượt mà không tốn network round-trip.
+- **Tầng 2 (Backend)**: Đảm bảo **bảo mật và toàn vẹn dữ liệu đĩa**. Người dùng có thể bypass Frontend (gửi request qua Postman/curl), do đó Backend bắt buộc phải tái kiểm định ký tự cấm, độ dài và tra trùng trước khi ghi file `.txt`.
+
+### ❓ Câu 19: Quy tắc chuẩn hóa giữa Nội dung câu hỏi và Phương án chọn khác nhau như thế nào?
+
+**Trả lời tốt:**
+- **Nội dung câu hỏi (`NOIDUNG`)**: Chỉ trim và collapse space thừa, **GIỮ NGUYÊN hoa/thường** nguyên bản của thầy cô nhập (vì câu hỏi trắc nghiệm có thể chứa từ viết hoa chuyên ngành, công thức...).
+- **Phương án chọn (`A`, `B`, `C`, `D`)**: Dùng **Sentence Case** (chỉ tự động viết hoa chữ cái đầu tiên của từ đầu tiên trong câu) và tự động kiểm tra trùng lặp bằng cách biến cả 4 options về chữ thường (`std::tolower`) để phát hiện hai phương án giống hệt nhau.
+

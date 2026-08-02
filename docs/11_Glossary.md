@@ -32,10 +32,16 @@ Tài liệu này tổng hợp và giải thích toàn bộ các **Thuật ngữ 
 - **Fixed-Length Record (Bản ghi cố định độ dài)**: Định dạng tệp đĩa trong đó mọi dòng/bản ghi có số lượng bytes bằng nhau (đệm khoảng trắng). Dùng cho tệp `.txt`.
 - **Byte Offset (Vị trí Byte)**: Khoảng cách tính bằng byte từ đầu tệp đến vị trí bắt đầu của một bản ghi dữ liệu. Dùng cho truy xuất trực tiếp `seekg`/`seekp` $O(1)$.
 - **`.idx` (Index Accelerator File)**: Tệp chỉ mục nhị phân lưu trữ cặp `Key -> Byte Offset` để tăng tốc truy vấn đĩa.
+- **`metadata.txt`**: Tệp lưu trữ các tham số hệ thống toàn cục như `LAST_QUESTION_ID`, `DELETED_*_COUNT`, `SCHEMA_VERSION=2.0`.
+- **`SystemSettings.txt`**: Tệp lưu cài đặt runtime hệ thống (ví dụ: `fullscreenRequired=true`).
+- **`transaction.log`**: Tệp nhật ký ghi vết thao tác hệ thống phục vụ chẩn đoán lỗi.
 - **Soft Delete (Xóa mềm)**: Kỹ thuật xóa bằng cách ghi cờ `'1'` vào **byte áp chót** (`STATUS_OFFSET` = byte 132 với SV, byte 734 với câu hỏi) thay vì xóa vật lý. File vẫn giữ nguyên bản ghi — Compaction Engine sẽ dọn sạch sau.
 - **Hard Delete (Xóa cứng)**: Xóa vật lý nút khỏi Cấu trúc Dữ liệu RAM và đánh dấu cờ `'1'` trên đĩa. Chỉ áp dụng cho câu hỏi `used == false`.
 - **Compaction Engine**: Tiến trình quét tệp đĩa loại bỏ các bản ghi đã xóa mềm `status = '1'` và tái cấu trúc lại tệp `.txt` gọn nhẹ cùng chỉ mục `.idx`.
 - **Atomic Safe Write**: Kỹ thuật ghi dữ liệu ra tệp tạm `.tmp` rồi mới tiến hành ghi đè hệ điều hành để đảm bảo an toàn tuyệt đối khi rớt điện.
+- **2-Layer Validation (Kiểm định 2 Tầng)**: Mô hình bảo vệ dữ liệu gồm Tầng 1 (Form UI Frontend React) và Tầng 2 (C++ Backend Server Validator).
+- **Title Case**: Quy tắc viết hoa chữ cái đầu tiên của mỗi từ (dùng cho Tên Lớp, Tên Môn, Họ Tên sinh viên).
+- **Sentence Case**: Quy tắc chỉ viết hoa chữ cái đầu tiên của từ đầu tiên trong câu (dùng cho Phương án chọn A, B, C, D).
 
 ---
 
@@ -47,3 +53,8 @@ Tài liệu này tổng hợp và giải thích toàn bộ các **Thuật ngữ 
 - **DTO (Data Transfer Object)**: Đối tượng JSON dùng để truyền tải dữ liệu giữa Client (React) và Server (C++).
 - **CORS (Cross-Origin Resource Sharing)**: Cơ chế an toàn trình duyệt cho phép Frontend từ domain/port này (`localhost:5173`) gọi API tới Server ở domain/port khác (`localhost:8080`).
 - **Axios Interceptor**: Hàm chặn giữa của client HTTP cho phép tự động xử lý request/response JSON hoặc bắt lỗi mạng.
+- **`StringNormalizer`**: Lớp xử lý chuẩn hóa văn bản backend C++ (xóa space thừa, toUpper mã, toTitleCase tên).
+- **`StorageValidator`**: Lớp kiểm định quy tắc ký tự cấm, độ dài và phát hiện trùng đáp án backend C++.
+- **`SubjectAutocomplete`**: Component React chọn môn học thông minh (tìm kiếm realtime theo mã/tên, highlight từ khóa, keyboard navigation).
+- **`ClassAutocomplete`**: Component React chọn lớp học thông minh (tìm kiếm realtime theo mã/tên, giữ icon ChevronDown).
+

@@ -1,55 +1,92 @@
 # 02. Luồng Yêu cầu Dữ liệu (Request Flow)
 
-Tài liệu này mô tả chi tiết luồng xử lý dữ liệu truyền từ tầng **Frontend (React)** qua **REST API**, tới **C++ Web Server**, xuống **Cấu trúc dữ liệu Core (Memory)** và đồng bộ lưu đĩa **Storage TXT + IDX**.
+Tài liệu này mô tả chi tiết luồng xử lý dữ liệu truyền từ tầng **Frontend (React)** qua **Bộ quy tắc Kiểm định 2 Tầng (2-Layer Validation)**, tới **C++ Web Server**, xuống **Cấu trúc dữ liệu Core (Memory)** và đồng bộ lưu đĩa **Storage TXT + IDX**.
 
 ---
 
-## 🗺️ 1. Sơ đồ Luồng Yêu cầu Tổng thể (End-to-End)
+## 💡 Phép so sánh Trực quan: Hành trình Dữ liệu Giống như "Gửi Bưu phẩm Quốc tế"
+
+```
+📦 GỬI BƯU PHẨM                              🖥️ XỬ LÝ REQUEST DỮ LIỆU
+┌────────────────────────────────┐          ┌────────────────────────────────┐
+│ 1. Bưu cục Địa phương (FE)     │ ────────► │ 1. Form Validation (FE)        │
+│    (Đóng gói đúng kích thước,  │          │    (Xóa space, tự viết hoa mã,  │
+│     dán nhãn mã vạch chuẩn)    │          │     kiểm tra form đúng mẫu UI) │
+├────────────────────────────────┤          ├────────────────────────────────┤
+│ 2. Đường Bay Xe Tải (HTTP)     │ ────────► │ 2. Axios REST Client (HTTP/1.1)│
+│    (Gửi gói quà qua mạng TCP)  │          │    (JSON Payload qua cổng 8080) │
+├────────────────────────────────┤          ├────────────────────────────────┤
+│ 3. Hải quan Tổng cục (BE)      │ ────────► │ 3. C++ StringNormalizer &      │
+│    (Kiểm tra hàng cấm, soi mã  │          │    StorageValidator (BE)       │
+│     vạch trùng trong sổ cái)   │          │    (Soi cấm ký tự |, tab, trùng)│
+├────────────────────────────────┤          ├────────────────────────────────┤
+│ 4. Lưu Kho Trung tâm (Storage) │ ────────► │ 4. RAM BST/Array + Disk TXT/IDX│
+│    (Xếp đúng vị trí kệ cố định)│          │    (Chèn RAM + Ghi đĩa O(1))   │
+└────────────────────────────────┘          └────────────────────────────────┘
+```
+
+---
+
+## 🗺️ 1. Sơ đồ Luồng Yêu cầu Tổng thể (End-to-End với 2-Layer Validation)
 
 ```
 [1. User Interaction]
-        │ (Người dùng nhấn nút / Submit form)
+        │ (Người dùng nhập Form / Submit)
         ▼
-[2. Frontend Service Layer]
-        │ (Gọi axios: api.post('/api/questions', data))
+[2. Frontend Validation & Normalization Layer (formValidation.ts)]
+        │ (Xóa khoảng trắng thừa, Title Case tên, normalizeIdentifier mã, báo lỗi UI ngay)
         ▼
-[3. HTTP REST Request over TCP/IP]
+[3. Frontend Service Layer (api.ts & *Service.ts)]
+        │ (Gọi Axios: api.post('/api/questions', normalizedData))
+        ▼
+[4. HTTP REST Request over TCP/IP]
         │ (Payload JSON qua HTTP/1.1 Header & Body tới cổng 8080)
         ▼
-[4. C++ Web Server (httplib::Server)]
+[5. C++ Web Server (httplib::Server & RouteRegistry)]
         │ (Thread Pool nhận request, match URL trong RouteRegistry)
         ▼
-[5. Route Handler (e.g. QuestionHandler)]
-        │ (Parse JSON → Kiểm tra Auth → Acquire DB_WRITE_LOCK)
+[6. Route Handler (e.g. QuestionHandler)]
+        │ (Acquire DB_WRITE_LOCK → StringNormalizer → StorageValidator)
+        │ ├── StringNormalizer: Chuẩn hóa backend (preserve question content casing)
+        │ └── StorageValidator: Check ký tự cấm (|, \t, \r, \n), trùng option lowercase
         ▼
-[6. C++ Core Data Structure & Domain Operations]
+[7. C++ Core Data Structure & Domain Operations]
         │ (Thao tác trên RAM: BST NodeMH / dsLop / dsSinhVien / dsCHT)
         ▼
-[7. Storage Engine & Index Accelerator]
+[8. Storage Engine & Index Accelerator]
         │ (StorageManager::append/write/mark + IndexManager::update)
         ▼
-[8. JSON Response → Frontend re-render UI]
+[9. JSON Response Envelope → Frontend re-render UI]
 ```
 
 ---
 
 ## 🔬 2. Giải phẫu Chi tiết Từng Bước
 
-### Bước 1 & 2: Frontend gọi API
+### Bước 1 & 2: Frontend Normalize & Validate (Tầng 1)
 
-**Tệp liên quan**: `frontend/src/shared/api/api.ts`, các `*Service.ts`
+**Tệp liên quan**: `frontend/src/shared/api/api.ts`, `frontend/src/shared/lib/formValidation.ts`
 
-- Frontend **KHÔNG BAO GIỜ** gọi API trực tiếp từ UI component — luôn thông qua Service Module.
-- `api.ts` khởi tạo Axios Client với:
-  - `baseURL: 'http://localhost:8080'`
-  - **Response Interceptor**: Tự động bóc tách envelope `{ success: true, data: ... }` → trả thẳng `data` cho caller.
-  - **Error Interceptor**: Bắt lỗi `status >= 502` → Kích hoạt màn hình Reconnect.
+1. **Chuẩn hóa ngay trên UI**:
+   - Mã (`MASV`, `MALOP`, `MAMH`): `normalizeIdentifier()` xóa khoảng trắng, chuyển IN HOA.
+   - Tên (`TENLOP`, `TENMH`, `HO`, `TEN`): `normalizeText()` / `toTitleCase()` viết hoa chữ cái đầu mỗi từ.
+   - Nội dung câu hỏi: `normalizeQuestionContent()` trim + collapse space, **giữ nguyên hoa/thường**.
+   - Option câu hỏi: `normalizeQuestionOption()` trim + collapse space, **Sentence Case** (viết hoa chữ cái đầu tiên).
+2. **Kiểm tra hợp lệ trước khi gửi**:
+   - `validateClassCode()`, `validateSubjectCode()`, `validateStudentName()`... trả lỗi ngay trên UI mà không cần chờ Server.
 
 ```typescript
-// Ví dụ service gọi tạo câu hỏi
-const createQuestion = (data) => api.post('/api/questions', data);
-// Interceptor tự unwrap: caller nhận { id: 105, mamh: "CTDL", ... }
-// thay vì { success: true, data: { id: 105, ... } }
+// Ví dụ xử lý form thêm sinh viên phía Frontend
+const handleSubmit = () => {
+  const normMasv = normalizeIdentifier(formMasv);
+  const normHo = toTitleCase(formHo);
+  const normTen = toTitleCase(formTen);
+  
+  const err = validateStudentId(normMasv) || validateStudentName(normHo);
+  if (err) return showError(err);
+
+  await studentService.createStudent({ masv: normMasv, ho: normHo, ten: normTen, ... });
+};
 ```
 
 ### Bước 3 & 4: Transport & Server Routing
@@ -59,89 +96,60 @@ const createQuestion = (data) => api.post('/api/questions', data);
 ```
 HTTP POST /api/questions
    Header: Content-Type: application/json
-   Body:   { "mamh": "CTDL", "noidung": "BST là gì?", ... }
+   Body:   { "mamh": "CTDL", "noidung": "BST là gì?", "a": "Cây nhị phân", ... }
 
 → httplib::Server nhận tại cổng 8080
 → RouteRegistry khớp: POST /api/questions → handle_create_question()
 → CORS Headers tự động thêm: Access-Control-Allow-Origin: *
 ```
 
-### Bước 5 & 6: Handler & Đồng bộ Đa luồng
+### Bước 5 & 6: Backend Handler, Normalize & Validate (Tầng 2)
 
-**Tệp liên quan**: `server/handlers/*.cpp`, `server/ServerContext.h`
+**Tệp liên quan**: `server/handlers/*.cpp`, `src/StringNormalizer.cpp`, `src/StorageValidator.cpp`
 
-1. Trích xuất tham số từ URL hoặc JSON body.
-2. Khóa tài nguyên shared state:
+1. **Acquire RWLock**: `DB_WRITE_LOCK` để đảm bảo độc quyền ghi.
+2. **Chuẩn hóa Backend**:
+   - `StringNormalizer::normalizeQuestion(q)` xử lý không làm mất hoa/thường của người dùng.
+3. **Kiểm định Backend**:
+   - `StorageValidator::validateQuestion()` kiểm tra cấm ký tự `|`, `\r`, `\n`, `\t`.
+   - `StorageValidator::hasDuplicateOptionsAfterNormalization()` chuyển 4 phương án về chữ thường (`std::tolower`) để phát hiện trùng đáp án (Ví dụ: `"Cây"` và `"cây"` bị coi là trùng).
+4. **Thao tác RAM**: Chèn vào Cây BST / DS Liên kết.
 
-```cpp
-// Đọc: Cho phép nhiều luồng đọc đồng thời
-DB_READ_LOCK;   // = std::shared_lock<std::shared_mutex> _rl(g_dbMutex)
-
-// Ghi: Chỉ 1 luồng được ghi, tất cả phải chờ
-DB_WRITE_LOCK;  // = std::unique_lock<std::shared_mutex> _wl(g_dbMutex)
-```
-
-3. Gọi các phương thức trên Cấu trúc Dữ liệu C++ RAM (`insert`, `remove`, `find`...).
-
-### Bước 7: Storage Engine (TXT + IDX)
+### Bước 7 & 8: Storage Engine & JSON Response
 
 **Tệp liên quan**: `src/StorageManager.cpp`, `src/IndexManager.cpp`
 
-Sau khi RAM đã được cập nhật → Đồng bộ xuống đĩa ngay lập tức:
 - Ghi bản ghi Fixed-Length 736 bytes vào `questions.txt`.
-- Gọi `IndexManager::updateQuestionOffset(id, offset)` → Cập nhật `question.idx`.
-
-### Bước 8: JSON Response
-
-Tất cả response đều theo cấu trúc chuẩn:
-```json
-// Thành công
-{ "success": true, "data": { ... } }
-
-// Thất bại
-{ "success": false, "message": "Mã sinh viên đã tồn tại!" }
-```
+- Cập nhật `question.idx` nhị phân.
+- Trả về Envelope Response: `{ "success": true, "data": { ... } }`.
 
 ---
 
-## 💡 3. Ví dụ Minh họa Đầy đủ: Thêm Câu hỏi Thi
+## 💡 3. Ví dụ Minh họa Đầy đủ: Thêm Câu hỏi Thi (Đi qua 2 Tầng)
 
 ```
-[1] Client gửi:
-    POST http://localhost:8080/api/questions
-    Body: { "mamh": "CTDL", "noidung": "BST là gì?", "a": "Cây...",
-            "b": "Mảng...", "c": "...", "d": "...", "dapan": "A" }
+[1] Frontend Input:
+    Người dùng nhập: noidung = "   thuat  toan   BST   la gi?   "
+                    a = "  cay nhi  phan "
+                    b = "  CAY  NHI PHAN "  <-- Cố tình nhập trùng!
 
-[2] RouteRegistry → handle_create_question()
+[2] Frontend Normalize:
+    normContent = "thuat  toan   BST   la gi?" (Giữ nguyên chữ thường 'thuat toan')
+    normA = "Cay nhi phan" (Sentence Case: C viết hoa)
+    normB = "Cay nhi phan"
 
-[3] QuestionHandler.cpp:
+[3] Frontend Validation:
+    normA === normB -> Frontend báo lỗi UI: "Đáp án B trùng với đáp án A!" (Chặn từ xa!)
+
+[4] Trường hợp người dùng bypass FE gửi thẳng API:
+    POST /api/questions Body: { "mamh":"CTDL", "a":"Cay nhi phan", "b":"cay nhi phan" }
+    │
+    ▼
+    QuestionHandler.cpp:
     │  DB_WRITE_LOCK
-    │  NodeMH* mhNode = find_subject_smart("CTDL");       ← Tra HashTable O(1)
-    │  if (!mhNode) → error_response(res, "Môn không tồn tại", 404)
-    │
-    │  // Kiểm tra trùng nội dung câu hỏi
-    │  if (dsCauHoi.findByContent(noidung)) → error_response(..., 422)
-    │
-    │  CauHoi ch;
-    │  ch.ID = StorageManager::getInstance().getNextQuestionID(); // → 201
-    │  ch.NOIDUNG = noidung; ch.A = a; ... ch.DAPAN_DUNG = 'A';
-    │  ch.used = false; ch.deleted = false;
-    │
-    │  mhNode->data.dsCauHoi.insert(ch);                  ← Chèn vào RAM
-
-[4] StorageManager::appendQuestion(ch, "CTDL", outOffset):
-    │  Format: "CTDL           |0000000201|BST là gì?..." (736 bytes cố định)
-    │  file.seekp(0, ios::end) → vị trí cuối file = 147200
-    │  Ghi 736 bytes → outOffset = 147200
-
-[5] IndexManager::updateQuestionOffset(201, 147200):
-    │  m_questionIndex.insert(201, 147200)    ← HashTable RAM
-    │  saveQuestionIndex() → question.idx (binary)
-
-[6] Response 201:
-    { "id": 201, "mamh": "CTDL", "noidung": "BST là gì?",
-      "a": "Cây...", "b": "Mảng...", ..., "dapan": "A",
-      "used": false, "deleted": false }
+    │  StorageValidator::hasDuplicateOptionsAfterNormalization(q, err)
+    │  --> "cay nhi phan" (lowercase) == "cay nhi phan" (lowercase)
+    │  --> Trả về 422: { "success": false, "message": "Các phương án lựa chọn không được trùng nhau!" }
 ```
 
 ---
@@ -167,9 +175,12 @@ Tất cả response đều theo cấu trúc chuẩn:
 
 | File | Nhiệm vụ |
 | :--- | :--- |
+| [formValidation.ts](file:///frontend/src/shared/lib/formValidation.ts) | Quy tắc Validate & Normalization phía Frontend |
 | [api.ts](file:///frontend/src/shared/api/api.ts) | Axios API Client tích hợp interceptors |
+| [StringNormalizer.cpp](file:///src/StringNormalizer.cpp) | Bộ chuẩn hóa chuỗi phía Backend C++ |
+| [StorageValidator.cpp](file:///src/StorageValidator.cpp) | Bộ kiểm định dữ liệu và phát hiện trùng đáp án Backend |
 | [ServerContext.h](file:///server/ServerContext.h) | Khai báo `dsl`, `dsmh`, `g_dbMutex`, macros `DB_READ_LOCK`/`DB_WRITE_LOCK` |
 | [RouteRegistry.cpp](file:///server/RouteRegistry.cpp) | Đăng ký tất cả REST API endpoints |
-| [QuestionHandler.cpp](file:///server/handlers/QuestionHandler.cpp) | Ví dụ handler xử lý câu hỏi |
+| [QuestionHandler.cpp](file:///server/handlers/QuestionHandler.cpp) | Handler xử lý câu hỏi |
 | [StorageManager.cpp](file:///src/StorageManager.cpp) | Quản lý lưu trữ ghi đĩa Fixed-Length |
 | [IndexManager.cpp](file:///src/IndexManager.cpp) | Quản lý HashTable chỉ mục RAM + file `.idx` |

@@ -33,6 +33,22 @@ Tài liệu này đi sâu phân tích luồng xử lý chi tiết của từng *
 
 ---
 
+## 🛡️ 1.5 Mô-đun Kiểm định & Chuẩn hóa 2 Tầng (2-Layer Validation Module)
+
+**Tệp liên quan**: `frontend/src/shared/lib/formValidation.ts`, `src/StringNormalizer.cpp`, `src/StorageValidator.cpp`
+
+### Luồng Chuẩn hóa Dữ liệu (Pipeline):
+
+```
+Người dùng nhập ──► [ TẦNG 1: Frontend ] ──► [ REST API ] ──► [ TẦNG 2: Backend ] ──► [ RAM & DISK ]
+  " d22-cq cn01 " ──► normalizeIdentifier ──► "D22-CQCN01" ──► normalizeIdentifier ──► Lưu file
+  "cOng   nGhE"   ──► toTitleCase         ──► "Cong Nghe"  ──► toTitleCase         ──► Lưu file
+  "cau hoi  test" ──► normalizeQuestion   ──► "cau hoi test"─► preserve case       ──► Lưu file
+```
+
+---
+
+
 ## 📚 2. Mô-đun Quản lý Danh mục
 
 ### 2.1 Thêm Môn học mới (Cây BST)

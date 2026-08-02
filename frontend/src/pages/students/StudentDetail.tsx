@@ -1,4 +1,4 @@
-﻿import TeacherLayout from "@/widgets/layouts/TeacherLayout"
+import TeacherLayout from "@/widgets/layouts/TeacherLayout"
 import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import {
@@ -22,11 +22,12 @@ import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"
 import { Drawer, EmptyState } from "@/shared/components"
-import { validateStudentName } from "@/shared/lib/formValidation"
+import { validateStudentName, splitStudentName, normalizeText } from "@/shared/lib/formValidation"
 import { useToast } from "@/app/providers/ToastContext"
 import { ApiErrorHandler } from "@/shared/api/ApiErrorHandler"
 
 export default function StudentDetail() {
+
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { showSuccess, showError, confirm } = useToast()
@@ -133,11 +134,16 @@ Thao tác này không thể hoàn tác.`,
     })
   }
 
+  const handleAutoSplitName = (hoVal: string, tenVal: string) => {
+    const { ho, ten } = splitStudentName(hoVal, tenVal)
+    setFormHo(ho)
+    setFormTen(ten)
+    return { ho, ten }
+  }
+
   const handleOpenEdit = () => {
     if (!student) return
-    const parts = student.name.trim().split(" ")
-    const ten = parts.pop() || ""
-    const ho = parts.join(" ")
+    const { ho, ten } = splitStudentName(student.ho || "", student.ten || student.name)
     setFormHo(ho)
     setFormTen(ten)
     setFormPassword("")
@@ -147,7 +153,8 @@ Thao tác này không thể hoàn tác.`,
 
   const handleSaveStudent = async () => {
     if (!student || !id) return
-    const full = `${formHo.trim()} ${formTen.trim()}`.trim()
+    const { ho: splitHo, ten: splitTen } = handleAutoSplitName(formHo, formTen)
+    const full = `${splitHo} ${splitTen}`.trim()
     const nameErr = validateStudentName(full)
     if (nameErr) {
       setErrors({ name: nameErr })
@@ -156,8 +163,12 @@ Thao tác này không thể hoàn tác.`,
 
     setIsSubmitting(true)
     try {
+      const normalizedHo = normalizeText(splitHo)
+      const normalizedTen = normalizeText(splitTen)
       await studentService.updateStudent(id, {
-        name: full,
+        ho: normalizedHo,
+        ten: normalizedTen,
+        name: `${normalizedHo} ${normalizedTen}`.trim(),
         password: formPassword ? formPassword : undefined,
       })
       setShowEditDrawer(false)
@@ -171,6 +182,7 @@ Thao tác này không thể hoàn tác.`,
       setIsSubmitting(false)
     }
   }
+
 
   if (loading) {
     return (
@@ -476,6 +488,7 @@ Thao tác này không thể hoàn tác.`,
               placeholder="Nhập họ và tên đệm"
               value={formHo}
               onChange={(e) => setFormHo(e.target.value)}
+              onBlur={(e) => handleAutoSplitName(e.target.value, formTen)}
               className="h-10"
             />
           </div>
@@ -489,10 +502,12 @@ Thao tác này không thể hoàn tác.`,
               placeholder="Nhập tên"
               value={formTen}
               onChange={(e) => setFormTen(e.target.value)}
+              onBlur={(e) => handleAutoSplitName(formHo, e.target.value)}
               className="h-10"
             />
             {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
           </div>
+
 
           {/* Mật khẩu */}
           <div className="space-y-1.5">

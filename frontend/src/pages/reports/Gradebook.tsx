@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   Search,
@@ -18,7 +18,7 @@ import TeacherLayout from "@/widgets/layouts/TeacherLayout"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { Select } from "@/shared/ui/select"
-import { StatCard, Pagination, SubjectAutocomplete } from "@/shared/components"
+import { StatCard, Pagination, SubjectAutocomplete, ClassAutocomplete } from "@/shared/components"
 import { useToast } from "@/app/providers/ToastContext"
 import { classService } from "@/entities/class/classService"
 import { subjectService } from "@/entities/subject/subjectService"
@@ -181,18 +181,13 @@ export default function Gradebook() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <label className="text-sm font-medium text-gray-700">Chọn lớp:</label>
-            <Select
-              className="w-[200px] h-10"
+            <label className="text-sm font-medium text-gray-700 flex-shrink-0">Chọn lớp:</label>
+            <ClassAutocomplete
+              className="w-[280px]"
+              items={classes}
               value={selectedClass}
-              onChange={(e) => {
-                setSelectedClass(e.target.value)
-              }}
-              options={
-                classes.length > 0
-                  ? classes.map((c) => ({ value: c.id, label: `${c.id} - ${c.name}` }))
-                  : [{ value: "", label: "-- Không có lớp --" }]
-              }
+              onChange={(classId) => setSelectedClass(classId)}
+              placeholder="Tìm theo mã hoặc tên lớp..."
             />
           </div>
         </div>

@@ -1,5 +1,5 @@
 import TeacherLayout from "@/widgets/layouts/TeacherLayout"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import {
   Users,
@@ -33,8 +33,10 @@ import {
   normalizeIdentifier,
   normalizeText,
   normalizePassword,
+  splitStudentName,
   VALIDATION_CONSTANTS,
 } from "@/shared/lib/formValidation"
+
 
 export default function ClassDetail() {
   const { classId } = useParams<{ classId: string }>()
@@ -94,7 +96,14 @@ export default function ClassDetail() {
 
   const [isEditingClass, setIsEditingClass] = useState(false)
   const [editForm, setEditForm] = useState({ name: "" })
+  const [editClassError, setEditClassError] = useState<string | undefined>(undefined)
   const [isSavingClass, setIsSavingClass] = useState(false)
+
+  const validateEditClassName = (val: string) => {
+    const err = validateClassName(val)
+    setEditClassError(err || undefined)
+    return err
+  }
 
   const [showAddStudent, setShowAddStudent] = useState(false)
   const [studentForm, setStudentForm] = useState({
@@ -125,6 +134,8 @@ export default function ClassDetail() {
     }
   }, [classId])
 
+  const [sortBy, setSortBy] = useState<"id_asc" | "name_asc" | "name_desc">("id_asc")
+
   const filteredStudents = students.filter(
     (s) =>
       s.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -133,10 +144,38 @@ export default function ClassDetail() {
       (s.ten && s.ten.toLowerCase().includes(searchTerm.toLowerCase()))
   )
 
+  const sortedStudents = useMemo(() => {
+    return [...filteredStudents].sort((a, b) => {
+      const tenA = a.ten || a.name.split(" ").slice(-1)[0] || ""
+      const tenB = b.ten || b.name.split(" ").slice(-1)[0] || ""
+      const hoA = a.ho || a.name.split(" ").slice(0, -1).join(" ") || ""
+      const hoB = b.ho || b.name.split(" ").slice(0, -1).join(" ") || ""
+
+      if (sortBy === "name_asc") {
+        const tenComp = tenA.localeCompare(tenB, "vi", { sensitivity: "base" })
+        if (tenComp !== 0) return tenComp
+        const hoComp = hoA.localeCompare(hoB, "vi", { sensitivity: "base" })
+        if (hoComp !== 0) return hoComp
+        return a.id.localeCompare(b.id)
+      }
+      if (sortBy === "name_desc") {
+        const tenComp = tenB.localeCompare(tenA, "vi", { sensitivity: "base" })
+        if (tenComp !== 0) return tenComp
+        const hoComp = hoB.localeCompare(hoA, "vi", { sensitivity: "base" })
+        if (hoComp !== 0) return hoComp
+        return b.id.localeCompare(a.id)
+      }
+      return a.id.localeCompare(b.id)
+    })
+  }, [filteredStudents, sortBy])
+
   const handleSaveClass = async () => {
     if (!classId || !classInfo) return
-    const nameErr = validateClassName(editForm.name)
-    if (nameErr) return
+    const nameErr = validateEditClassName(editForm.name)
+    if (nameErr) {
+      showError("Dữ liệu không hợp lệ", nameErr)
+      return
+    }
 
     setIsSavingClass(true)
     try {
@@ -150,10 +189,12 @@ export default function ClassDetail() {
     } catch (err: any) {
       const parsed = ApiErrorHandler.handle(err)
       showError("Không thể cập nhật lớp học", parsed.message, parsed.code)
+      setEditClassError(parsed.message)
     } finally {
       setIsSavingClass(false)
     }
   }
+
 
   const validateStudentFormId = (val: string) => {
     let err = validateStudentId(val)
@@ -179,6 +220,14 @@ export default function ClassDetail() {
     return err
   }
 
+  const handleAutoSplitName = (hoVal: string, tenVal: string) => {
+    const { ho, ten } = splitStudentName(hoVal, tenVal)
+    setStudentForm((prev) => ({ ...prev, ho, ten }))
+    if (ho) validateStudentFormHo(ho)
+    if (ten) validateStudentFormTen(ten)
+    return { ho, ten }
+  }
+
   const validateStudentFormGender = (val: string) => {
     const err = validateGender(val)
     setStudentErrors((prev) => ({ ...prev, gender: err || undefined }))
@@ -194,9 +243,12 @@ export default function ClassDetail() {
   const handleAddStudent = async () => {
     if (!classId || !classInfo) return
 
+    // Auto-split name (Tên = 1 từ cuối, Họ = các từ còn lại)
+    const { ho: splitHo, ten: splitTen } = handleAutoSplitName(studentForm.ho, studentForm.ten)
+
     const idErr = validateStudentFormId(studentForm.id)
-    const hoErr = validateStudentFormHo(studentForm.ho)
-    const tenErr = validateStudentFormTen(studentForm.ten)
+    const hoErr = validateStudentFormHo(splitHo)
+    const tenErr = validateStudentFormTen(splitTen)
     const genderErr = validateStudentFormGender(studentForm.gender)
     const pwdErr = validateStudentFormPassword(studentForm.password)
 
@@ -205,8 +257,8 @@ export default function ClassDetail() {
     setIsSubmittingStudent(true)
     try {
       const normalizedId = normalizeIdentifier(studentForm.id)
-      const normalizedHo = normalizeText(studentForm.ho)
-      const normalizedTen = normalizeText(studentForm.ten)
+      const normalizedHo = normalizeText(splitHo)
+      const normalizedTen = normalizeText(splitTen)
       const fullName = `${normalizedHo} ${normalizedTen}`.trim()
       const normalizedPassword = normalizePassword(studentForm.password)
 
@@ -229,6 +281,7 @@ export default function ClassDetail() {
       showSuccess("Thêm sinh viên thành công", `Mã sinh viên: ${normalizedId}`)
     } catch (err: any) {
       const parsed = ApiErrorHandler.handle(err)
+
       showError("Không thể thêm sinh viên", parsed.message, parsed.code)
     } finally {
       setIsSubmittingStudent(false)
@@ -296,7 +349,11 @@ export default function ClassDetail() {
             <p className="text-sm text-gray-500 mt-1">Mã lớp: {classInfo.id}</p>
           </div>
           <Button
-            onClick={() => setIsEditingClass(true)}
+            onClick={() => {
+              setEditForm({ name: classInfo.name })
+              setEditClassError(undefined)
+              setIsEditingClass(true)
+            }}
             className="bg-[#D9272B] hover:bg-[#C42226] text-white flex items-center gap-2 px-4 py-2.5 rounded-lg shadow-sm"
           >
             <Edit3 className="h-4 w-4" />
@@ -357,6 +414,21 @@ export default function ClassDetail() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
+
+              {/* Sort Filter Dropdown */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-medium text-gray-500 whitespace-nowrap">Sắp xếp:</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="h-10 px-3 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#D9272B]/20 cursor-pointer"
+                >
+                  <option value="id_asc">Mã SV (Mặc định)</option>
+                  <option value="name_asc">Tên A → Z</option>
+                  <option value="name_desc">Tên Z → A</option>
+                </select>
+              </div>
+
               {selectedStudentIds.length > 0 && (
                 <Button
                   variant="outline"
@@ -380,7 +452,7 @@ export default function ClassDetail() {
                     <input
                       type="checkbox"
                       className="rounded border-gray-300 text-[#D9272B] focus:ring-[#D9272B] cursor-pointer"
-                      checked={filteredStudents.length > 0 && selectedStudentIds.length === filteredStudents.length}
+                      checked={sortedStudents.length > 0 && selectedStudentIds.length === sortedStudents.length}
                       onChange={toggleSelectAllStudents}
                     />
                   </th>
@@ -393,7 +465,7 @@ export default function ClassDetail() {
                 </tr>
               </thead>
               <tbody>
-                {filteredStudents.map((student) => (
+                {sortedStudents.map((student) => (
                   <tr key={student.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
                     <td className="text-center px-4 py-3">
                       <input
@@ -449,7 +521,7 @@ export default function ClassDetail() {
                 ))}
               </tbody>
             </table>
-            {filteredStudents.length === 0 && (
+            {sortedStudents.length === 0 && (
               <div className="text-center py-8 text-gray-500">Không có sinh viên nào trong lớp</div>
             )}
           </div>
@@ -475,22 +547,34 @@ export default function ClassDetail() {
                 <Label className="text-sm font-medium text-gray-700">Tên lớp mới <span className="text-red-500">*</span></Label>
                 <Input
                   value={editForm.name}
-                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setEditForm({ ...editForm, name: val })
+                    validateEditClassName(val)
+                  }}
+                  onBlur={(e) => {
+                    const normalized = normalizeText(e.target.value)
+                    setEditForm({ ...editForm, name: normalized })
+                    validateEditClassName(normalized)
+                  }}
                   placeholder="Nhập tên lớp mới..."
+                  className={editClassError ? "border-red-500 focus:ring-red-500" : ""}
                 />
+                {editClassError && <p className="text-xs text-red-500">{editClassError}</p>}
               </div>
             </div>
             <div className="px-6 py-4 border-t border-gray-200 flex items-center gap-3">
               <Button variant="outline" className="flex-1 h-11" onClick={() => setIsEditingClass(false)} disabled={isSavingClass}>
                 Hủy
               </Button>
-              <Button className="flex-1 h-11 bg-[#D9272B] hover:bg-[#C42226] text-white font-semibold" onClick={handleSaveClass} disabled={isSavingClass || !editForm.name.trim()}>
+              <Button className="flex-1 h-11 bg-[#D9272B] hover:bg-[#C42226] text-white font-semibold" onClick={handleSaveClass} disabled={isSavingClass || !!editClassError || !editForm.name.trim()}>
                 {isSavingClass ? "Đang lưu..." : "Lưu thay đổi"}
               </Button>
             </div>
           </div>
         </>
       )}
+
 
       {showAddStudent && (
         <>
@@ -537,9 +621,7 @@ export default function ClassDetail() {
                     validateStudentFormHo(val)
                   }}
                   onBlur={(e) => {
-                    const normalized = normalizeText(e.target.value)
-                    setStudentForm({ ...studentForm, ho: normalized })
-                    validateStudentFormHo(normalized)
+                    handleAutoSplitName(e.target.value, studentForm.ten)
                   }}
                   className="h-10"
                 />
@@ -560,14 +642,13 @@ export default function ClassDetail() {
                     validateStudentFormTen(val)
                   }}
                   onBlur={(e) => {
-                    const normalized = normalizeText(e.target.value)
-                    setStudentForm({ ...studentForm, ten: normalized })
-                    validateStudentFormTen(normalized)
+                    handleAutoSplitName(studentForm.ho, e.target.value)
                   }}
                   className="h-10"
                 />
                 {studentErrors.ten && <p className="text-xs text-red-500">{studentErrors.ten}</p>}
               </div>
+
 
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium text-gray-700">

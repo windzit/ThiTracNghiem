@@ -263,3 +263,26 @@ export function validateQuestionOption(opt: string, label: string): string | nul
   }
   return null
 }
+
+/**
+ * Auto-split student name so TÊN is strictly 1 single word,
+ * and HỌ contains all preceding middle and family names.
+ * Example:
+ *   ho="Bùi", ten="Ngọc An" -> { ho: "Bùi Ngọc", ten: "An" }
+ *   ho="", ten="Nguyễn Văn An" -> { ho: "Nguyễn Văn", ten: "An" }
+ *   ho="Nguyễn Văn", ten="An" -> { ho: "Nguyễn Văn", ten: "An" }
+ */
+export function splitStudentName(hoInput: string, tenInput: string): { ho: string; ten: string } {
+  const combined = `${hoInput.trim()} ${tenInput.trim()}`.trim()
+  if (!combined) return { ho: '', ten: '' }
+
+  const parts = combined.split(/\s+/).filter(Boolean)
+  if (parts.length === 1) {
+    return { ho: '', ten: toTitleCase(parts[0]) }
+  }
+
+  const ten = toTitleCase(parts.pop() || '')
+  const ho = toTitleCase(parts.join(' '))
+  return { ho, ten }
+}
+
