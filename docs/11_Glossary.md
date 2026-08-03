@@ -57,4 +57,6 @@ Tài liệu này tổng hợp và giải thích toàn bộ các **Thuật ngữ 
 - **`StorageValidator`**: Lớp kiểm định quy tắc ký tự cấm, độ dài và phát hiện trùng đáp án backend C++.
 - **`SubjectAutocomplete`**: Component React chọn môn học thông minh (tìm kiếm realtime theo mã/tên, highlight từ khóa, keyboard navigation).
 - **`ClassAutocomplete`**: Component React chọn lớp học thông minh (tìm kiếm realtime theo mã/tên, giữ icon ChevronDown).
+- **Auto-Split Name UX**: Cơ chế tự động phân tách Tên (1 từ cuối) và Họ (các từ còn lại) ở Frontend nhằm tối ưu trải nghiệm người dùng không bị báo lỗi gián đoạn.
+
 

@@ -70,9 +70,10 @@ Tài liệu này tổng hợp và phân định rõ ràng **Trách nhiệm Đơn
 | `LinkedList<T>` | `[LinkedList.h](file:///include/LinkedList.h)` | Lớp bao đóng Danh sách liên kết đơn tổng quát. |
 
 | `StringNormalizer` | `[StringNormalizer.h](file:///include/StringNormalizer.h)` | Chuẩn hóa chuỗi C++ Backend (`normalizeIdentifier`, `toTitleCase`, `normalizeHumanText`, `normalizeClass`, `normalizeStudent`, `normalizeSubject`, `normalizeQuestion`). |
-| `formValidation.ts` | `[formValidation.ts](file:///frontend/src/shared/lib/formValidation.ts)` | Kiểm định và chuẩn hóa dữ liệu Frontend React (`validateClassCode`, `validateStudentId`, `validateSubjectCode`, `normalizeQuestionContent`, `normalizeQuestionOption`...). |
+| `formValidation.ts` | `[formValidation.ts](file:///frontend/src/shared/lib/formValidation.ts)` | Kiểm định và chuẩn hóa dữ liệu Frontend React (`validateClassCode`, `validateStudentId`, `validateSubjectCode`, `splitStudentName` tự động bóc tách Tên 1 từ, `normalizeQuestionContent`...). |
 | `SubjectAutocomplete` | `[SubjectAutocomplete.tsx](file:///frontend/src/features/autocomplete/SubjectAutocomplete.tsx)` | Component ô gợi ý tìm kiếm môn học tự động phía Frontend (lọc realtime theo mã/tên môn, diacritics removal, highlight từ khóa, keyboard navigation). |
 | `ClassAutocomplete` | `[ClassAutocomplete.tsx](file:///frontend/src/features/autocomplete/ClassAutocomplete.tsx)` | Component ô gợi ý tìm kiếm lớp học tự động phía Frontend (lọc realtime theo mã/tên lớp, diacritics removal, highlight từ khóa, giữ icon ChevronDown). |
+
 
 ---
 

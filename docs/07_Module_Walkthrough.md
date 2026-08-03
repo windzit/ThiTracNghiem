@@ -33,7 +33,7 @@ Tài liệu này đi sâu phân tích luồng xử lý chi tiết của từng *
 
 ---
 
-## 🛡️ 1.5 Mô-đun Kiểm định & Chuẩn hóa 2 Tầng (2-Layer Validation Module)
+## 🛡️ 1.5 Mô-đun Kiểm định, Chuẩn hóa & Xử lý Tên (2-Layer Validation & Auto-Split Name UX)
 
 **Tệp liên quan**: `frontend/src/shared/lib/formValidation.ts`, `src/StringNormalizer.cpp`, `src/StorageValidator.cpp`
 
@@ -46,7 +46,22 @@ Người dùng nhập ──► [ TẦNG 1: Frontend ] ──► [ REST API ] �
   "cau hoi  test" ──► normalizeQuestion   ──► "cau hoi test"─► preserve case       ──► Lưu file
 ```
 
+### Luồng Tự động Bóc tách Tên Sinh viên (Auto-Split Name UX):
+```
+Người dùng nhập:  Họ = "Bùi", Tên = "Ngọc An"  (hoặc nhập cả họ tên ở ô Tên)
+                             │
+                             ▼ [onBlur / Submit]
+           splitStudentName("Bùi", "Ngọc An")
+                             │
+            ┌────────────────┴────────────────┐
+            ▼                                 ▼
+    HỌ = "Bùi Ngọc"                  TÊN = "An" (1 từ duy nhất)
+```
+- **Quy tắc**: TÊN luôn là 1 từ duy nhất ở cuối. HỌ chứa toàn bộ các từ trước đó.
+- **Sắp xếp**: Danh sách sinh viên hỗ trợ lọc sắp xếp theo Tên chuẩn Tiếng Việt `localeCompare('vi')` (Tên A-Z, Tên Z-A, Mã SV).
+
 ---
+
 
 
 ## 📚 2. Mô-đun Quản lý Danh mục
