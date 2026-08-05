@@ -27,7 +27,7 @@ struct dsCHT {
 
 class Question {
 public:
-    Question() : root(nullptr) {};
+    Question() : root(nullptr), tail(nullptr) {};
 
     Question(const Question& other);
 
@@ -49,8 +49,10 @@ public:
     bool save(const char* MAMH);
     bool load(const char* MAMH);
     dsCHT* getRoot() const { return root; }
+    dsCHT* getTail() const { return tail; }
 private:
     dsCHT* root;
+    dsCHT* tail;
 
     void clear();
-};
+};

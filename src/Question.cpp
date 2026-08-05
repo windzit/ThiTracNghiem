@@ -5,6 +5,7 @@
 Question::Question(const Question& other)
 {
     root = nullptr;
+    tail = nullptr;
 
     dsCHT* p = other.root;
 
@@ -22,6 +23,7 @@ Question& Question::operator=(const Question& other)
 
     clear();
     root = nullptr;
+    tail = nullptr;
 
     dsCHT* p = other.root;
 
@@ -41,6 +43,7 @@ void Question::clear() {
         root = root->next;
         delete tmp;
     }
+    tail = nullptr;
 }
 
 bool Question::insert(CauHoi& cauhoi, bool autoId){
@@ -49,17 +52,33 @@ bool Question::insert(CauHoi& cauhoi, bool autoId){
     }
     dsCHT* node = new dsCHT(cauhoi);
 
-    if (!root || cauhoi.ID < root->cauhoi.ID) {
+    // 1. Empty list: node is both root and tail
+    if (!root) {
+        root = tail = node;
+        return true;
+    }
+
+    // 2. Fast-path O(1) tail append (happens in 99.99% cases since IDs are auto-incremented)
+    if (cauhoi.ID > tail->cauhoi.ID) {
+        tail->next = node;
+        tail = node;
+        return true;
+    }
+
+    // 3. Head insert (when ID is smaller than root)
+    if (cauhoi.ID < root->cauhoi.ID) {
         node->next = root;
         root = node;
         return true;
     }
 
+    // 4. Middle insert (when ID is between root and tail)
     dsCHT* cur = root;
-    while (cur->next && cur->next->cauhoi.ID < cauhoi.ID)
+    while (cur->next && cur->next->cauhoi.ID < cauhoi.ID) {
         cur = cur->next;
-    
-    if (cur->next && cauhoi.ID == cur->cauhoi.ID) {
+    }
+
+    if (cur->cauhoi.ID == cauhoi.ID || (cur->next && cur->next->cauhoi.ID == cauhoi.ID)) {
         delete node;
         return false;
     }
@@ -68,15 +87,16 @@ bool Question::insert(CauHoi& cauhoi, bool autoId){
     cur->next = node;
 
     return true;
-};
+}
 
 bool Question::removeNode(int ID){
     // Physical removal (hard delete) — no used check, no soft delete
-    if ( root == nullptr ) return false;
+    if (root == nullptr) return false;
     
-    if ( root->cauhoi.ID == ID ){
+    if (root->cauhoi.ID == ID){
         dsCHT* temp = root;
         root = root->next;
+        if (!root) tail = nullptr;
         delete temp;
         return true;
     }
@@ -85,20 +105,23 @@ bool Question::removeNode(int ID){
     dsCHT* pre = nullptr;
     
     while (temp != nullptr){
-        if ( temp->cauhoi.ID == ID){
+        if (temp->cauhoi.ID == ID){
             break;
         }
         pre = temp;
         temp = temp->next;
     }
 
-    if ( temp == nullptr) return false;
+    if (temp == nullptr) return false;
 
     pre->next = temp->next;
+    if (temp == tail) {
+        tail = pre;
+    }
     delete temp;
-    temp = nullptr;
     return true;
-};
+}
+
 
 bool Question::setDeleted(int ID) {
     // Soft delete: set deleted=true, node remains in memory
