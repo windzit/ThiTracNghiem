@@ -138,8 +138,8 @@ export default function SubjectManagement() {
 
   const handleDeleteSubject = async (id: string) => {
     const sub = subjects.find((s) => s.id === id)
-    if (sub && sub.questionCount > 0) {
-      showError("Không thể xóa môn học", "Môn học đang chứa câu hỏi, vui lòng xóa câu hỏi trước.", "BR-SUBJECT-DELETE-01")
+    if (sub && (sub.used || sub.status === "hidden")) {
+      showError("Không thể xóa môn học", "Môn học đã được sử dụng trong kỳ thi hoặc đã có sinh viên thi.", "BR-SUBJECT-DELETE-01")
       return
     }
 
@@ -166,9 +166,9 @@ export default function SubjectManagement() {
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return
 
-    const subsWithQuestions = subjects.filter((s) => selectedIds.includes(s.id) && s.questionCount > 0)
-    if (subsWithQuestions.length > 0) {
-      showError("Không thể xóa môn học", `Có ${subsWithQuestions.length} môn học vẫn còn câu hỏi. Vui lòng xóa câu hỏi trước.`, "BR-SUBJECT-DELETE-01")
+    const subsUsed = subjects.filter((s) => selectedIds.includes(s.id) && (s.used || s.status === "hidden"))
+    if (subsUsed.length > 0) {
+      showError("Không thể xóa môn học", `Có ${subsUsed.length} môn học đã được sử dụng trong kỳ thi. Vui lòng kiểm tra lại.`, "BR-SUBJECT-DELETE-01")
       return
     }
 

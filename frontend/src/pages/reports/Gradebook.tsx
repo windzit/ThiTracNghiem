@@ -13,7 +13,9 @@ import {
   AlertTriangle,
   X,
   BookOpen,
+  FileSpreadsheet,
 } from "lucide-react"
+import ExcelJS from "exceljs"
 import TeacherLayout from "@/widgets/layouts/TeacherLayout"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
@@ -164,6 +166,114 @@ export default function Gradebook() {
     ? activeSubjectCodes.includes(selectedSubjectFilter.code)
     : false
 
+  // Export Enable Condition: Subject selected AND no student filter (searchTerm is empty)
+  const isExportEnabled = selectedSubjectFilter !== null && searchTerm.trim() === ""
+
+  const handleExportExcel = async () => {
+    // Safety check: abort if export is not enabled or parameters are missing
+    if (!isExportEnabled || !selectedSubjectFilter || !selectedClass) return
+
+    const subjectName = formatSubjectLabel(selectedSubjectFilter)
+    const subjectCode = selectedSubjectFilter.code
+    const cleanClass = selectedClass.replace(/[/\\?%*:|"<>]/g, "_")
+    const cleanSubjectCode = subjectCode.replace(/[/\\?%*:|"<>]/g, "_")
+
+    const workbook = new ExcelJS.Workbook()
+    const worksheet = workbook.addWorksheet("Bảng điểm")
+
+    // Set fixed column widths: A=8, B=16, C=32, D=14
+    worksheet.columns = [
+      { key: "stt", width: 8 },
+      { key: "masv", width: 16 },
+      { key: "fullname", width: 32 },
+      { key: "score", width: 14 },
+    ]
+
+    // Row 1: Title
+    const titleRow = worksheet.addRow([`BẢNG ĐIỂM MÔN ${subjectName} (${subjectCode})`])
+    worksheet.mergeCells("A1:D1")
+    titleRow.font = { name: "Arial", size: 14, bold: true, color: { argb: "FF111827" } }
+    titleRow.alignment = { horizontal: "center", vertical: "middle" }
+
+    // Row 2: Class
+    const classRow = worksheet.addRow([`LỚP: ${selectedClass}`])
+    worksheet.mergeCells("A2:D2")
+    classRow.font = { name: "Arial", size: 11, bold: true, color: { argb: "FF4B5563" } }
+    classRow.alignment = { horizontal: "center", vertical: "middle" }
+
+    // Row 3: Blank
+    worksheet.addRow([])
+
+    // Row 4: Header
+    const headerRow = worksheet.addRow(["STT", "MSSV", "HỌ VÀ TÊN", "ĐIỂM"])
+    headerRow.font = { name: "Arial", size: 11, bold: true, color: { argb: "FF1F2937" } }
+    headerRow.alignment = { horizontal: "center", vertical: "middle" }
+    headerRow.eachCell((cell) => {
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFF3F4F6" },
+      }
+      cell.border = {
+        top: { style: "thin", color: { argb: "FFD1D5DB" } },
+        left: { style: "thin", color: { argb: "FFD1D5DB" } },
+        bottom: { style: "thin", color: { argb: "FFD1D5DB" } },
+        right: { style: "thin", color: { argb: "FFD1D5DB" } },
+      }
+    })
+
+    // Rows 5+: Data from raw students array (FULL class list)
+    students.forEach((student, index) => {
+      const score = student.scores[subjectCode]
+      let scoreDisplay: string | number = "CHƯA THI"
+
+      if (typeof score === "number") {
+        scoreDisplay = score
+      }
+
+      const dataRow = worksheet.addRow([
+        index + 1,
+        student.masv,
+        `${student.ho} ${student.ten}`,
+        scoreDisplay,
+      ])
+
+      dataRow.font = { name: "Arial", size: 11, color: { argb: "FF111827" } }
+
+      // STT (Col 1): Center
+      dataRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" }
+      // MSSV (Col 2): Center
+      dataRow.getCell(2).alignment = { horizontal: "center", vertical: "middle" }
+      // HỌ VÀ TÊN (Col 3): Left
+      dataRow.getCell(3).alignment = { horizontal: "left", vertical: "middle" }
+      // ĐIỂM (Col 4): Center
+      dataRow.getCell(4).alignment = { horizontal: "center", vertical: "middle" }
+
+      dataRow.eachCell((cell) => {
+        cell.border = {
+          top: { style: "thin", color: { argb: "FFE5E7EB" } },
+          left: { style: "thin", color: { argb: "FFE5E7EB" } },
+          bottom: { style: "thin", color: { argb: "FFE5E7EB" } },
+          right: { style: "thin", color: { argb: "FFE5E7EB" } },
+        }
+      })
+    })
+
+    // Browser Download via Blob
+    const buffer = await workbook.xlsx.writeBuffer()
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.setAttribute("download", `BangDiem_${cleanClass}_${cleanSubjectCode}.xlsx`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <TeacherLayout
       breadcrumb={[
@@ -214,7 +324,7 @@ export default function Gradebook() {
 
         {/* Main Table */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          {/* Toolbar with Search + Subject Autocomplete Filter */}
+          {/* Toolbar with Search + Subject Autocomplete Filter + Export Excel Button */}
           <div className="flex flex-col sm:flex-row items-center gap-3 px-4 py-3 border-b border-gray-200">
             {/* Student Search */}
             <div className="relative flex-1 w-full max-w-md">
@@ -251,6 +361,27 @@ export default function Gradebook() {
                 </button>
               )}
             </div>
+
+            {/* Export Excel Button */}
+            <Button
+              onClick={handleExportExcel}
+              disabled={!isExportEnabled}
+              className={
+                isExportEnabled
+                  ? "w-full sm:w-auto h-10 gap-2 font-medium bg-[#D9272B] hover:bg-[#C42226] text-white shadow-xs"
+                  : "w-full sm:w-auto h-10 gap-2 font-medium"
+              }
+              title={
+                !selectedSubjectFilter
+                  ? "Vui lòng chọn môn học để xuất danh sách điểm"
+                  : searchTerm.trim() !== ""
+                  ? "Không thể xuất danh sách khi đang lọc tìm kiếm sinh viên"
+                  : "Xuất bảng điểm đầy đủ của lớp theo môn học"
+              }
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              <span>Xuất danh sách điểm</span>
+            </Button>
           </div>
 
           {/* Table or Empty State */}

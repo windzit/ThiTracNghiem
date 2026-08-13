@@ -109,24 +109,21 @@ bool Score::remove(const char* MAMH) {
 }
 
 dsDiemThi* Score::find(const char* MAMH) {
-	if (!root)
+	if (!root || !MAMH)
 		return nullptr;
 
 	dsDiemThi* cur = root;
-	int cmp;
-
 	while (cur) {
-		cmp = strcmp(cur->diemthi.MAMH, MAMH);
-		if (cmp >= 0)
-			break;
+		int cmp = strcmp(cur->diemthi.MAMH, MAMH);
+		if (cmp == 0)
+			return cur;
+		if (cmp > 0)
+			return nullptr;
 
 		cur = cur->next;
 	}
 
-	if (cmp != 0)
-		return nullptr;
-
-	return cur;
+	return nullptr;
 }
 
 int Score::count() const {

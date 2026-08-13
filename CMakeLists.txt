@@ -50,9 +50,6 @@ if (WIN32)
     target_link_libraries(server ws2_32)
 endif()
 
-# ============================================================
-# Target 2: Console Application
-# ============================================================
 add_executable(console
     "main.cpp"
     "src/Menu.cpp"
@@ -75,5 +72,7 @@ add_executable(console
     "src/StorageIntegrityChecker.cpp"
     "src/StringNormalizer.cpp"
 )
+
+set_target_properties(server console PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 
 

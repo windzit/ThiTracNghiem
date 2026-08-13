@@ -11,7 +11,9 @@ using namespace std;
 static void collectMAMHNames(NodeMH* node, DArray<string>& mamhs) {
     if (!node) return;
     collectMAMHNames(node->left, mamhs);
-    mamhs.push_back(node->data.MAMH);
+    if (node->data.MAMH[0] != '\0') {
+        mamhs.push_back(string(node->data.MAMH, strnlen(node->data.MAMH, 15)));
+    }
     collectMAMHNames(node->right, mamhs);
 }
 

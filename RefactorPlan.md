@@ -1,161 +1,155 @@
-# RefactorPlan.md — ThiTracNghiem Codebase Refactoring Plan & Architecture Review
+# KẾ HOẠCH BẢO VỆ ĐỒ ÁN: HỆ THỐNG LƯU TRỮ DỮ LIỆU (STORAGE SYSTEM)
 
-> **Note**: This document contains the initial Refactoring Plan and the strict **Ponytail Architecture & Risk Review**. No code implementation or file modifications have been executed yet.
-
----
-
-## Part 1: Ponytail Architecture & Risk Review
-
-### 1. Regression Risk Assessment
-
-- **Phase 1 (Safe Cleanup)**: Classified as **`SAFE`**. Deletes `Validation.h/.cpp`, `Migrator.h/.cpp`, and 5 mock TypeScript files. Verified via codebase search to have 0 call sites. Zero risk to existing runtime behavior.
-- **Phase 2 (Frontend FSD Reorganization)**: Classified as **`LOW`**. Moves ~45 TypeScript files into Feature-Sliced Design (FSD) folders and updates import aliases. Pure file movement without logic changes.
-- **Phase 3 (Server Organization)**: Classified as **`LOW`**. Extracts 30+ HTTP handlers from `server.cpp` into modular domain handlers (`AuthHandler`, `StudentHandler`, `SubjectHandler`, etc.). Handlers retain identical request parsing, mutex locks (`DB_READ_LOCK`, `DB_WRITE_LOCK`), status codes, and JSON formats.
-- **Phase 4 (Optional Abstractions)**: Classified as **`MEDIUM`** (Recommend **REJECTING**). Creating wrapper classes around standard HTTP headers and mutex locks introduces unnecessary abstraction bloat.
+Tài liệu này được thiết kế theo dạng **Kế hoạch Học tập & Bảo vệ Đồ án**, giải thích toàn bộ cơ chế lưu trữ dữ liệu trong dự án bằng ngôn ngữ **dễ hiểu, trực quan (dùng hình ảnh ẩn dụ cho người không chuyên)** nhưng vẫn đảm bảo **chính xác 100% về mặt kỹ thuật thuật toán C++**.
 
 ---
 
-### 2. Business Safety Verification
+## 1. MỤC TIÊU BẢO VỆ ĐỒ ÁN (GOALS)
 
-The refactor plan guarantees **ZERO** changes to business behavior:
-- **Business Rules**: 100% unchanged. Core backend files (`Auth.cpp`, `Question.cpp`, `Student.cpp`, `Subject.cpp`, `Score.cpp`, `Class.cpp`, `Exam.cpp`, `StorageManager.cpp`, `StorageValidator.cpp`, `StorageVerifier.cpp`, `StorageDeserializer.cpp`, `StorageSerializer.cpp`) are strictly untouchable.
-- **Storage Format**: 100% unchanged. Text file schemas and path resolutions remain identical.
-- **REST API Behavior**: 100% unchanged. All HTTP paths, request payloads, status codes, and JSON shapes remain identical.
-- **Validation Behavior**: 100% unchanged. `runValidationTests()` is moved intact to `server/Diagnostics.cpp`.
-- **Question, Exam, Score Lifecycles & Auth Flow**: 100% unchanged.
-
-**Accidental Risk Prevention**:
-- Server handlers will access `dsl` (Class), `dsmh` (Subject), and `g_dbMutex` through clean header declarations (`ServerContext.h`) to avoid duplicate static initialization across compilation units.
+Sau khi nắm kế hoạch này, bạn sẽ tự tin trả lời mọi câu hỏi của Hội đồng bảo vệ đồ án về các chủ đề:
+1. **Liên kết dữ liệu giữa các file**: Tại sao lưu chung 200 sinh viên vào 1 file `students.txt` mà hệ thống vẫn biết sinh viên nào thuộc lớp nào?
+2. **Fixed-Length Records (Bản ghi độ dài cố định)**: Fixed-length là gì? Tại sao phải dùng? Muốn đổi độ dài record thì sửa ở file nào, dòng nào?
+3. **File chỉ mục `.idx` (Binary Index File)**: File `.idx` là gì? Tại sao phải có file `.idx` song song với file `.txt`?
+4. **Quy trình Save / Load**: Dữ liệu di chuyển từ Đĩa -> RAM -> Đĩa như thế nào?
+5. **Cấu trúc bộ mã nguồn**: Vai trò của từng file `Storage*.cpp` trong dự án.
 
 ---
 
-### 3. Architecture Value Analysis
+## 2. ẨN DỤ DỄ HIỂU (ANALOGY FOR NON-TECHNICAL AUDIENCE)
 
-- **Phase 1 (Safe Cleanup)**: **`Necessary`**. Removes 900+ lines of dead legacy C++ code and unused mock files.
-- **Phase 3 (Server Modularization)**: **`Necessary`**. Fixes the 1815-line `server.cpp` monolith by separating HTTP routing, bootstrap, diagnostics, and domain controllers.
-- **Phase 2 (Frontend FSD Reorganization)**: **`Useful`**. Organizes frontend into FSD layers (`app`, `pages`, `widgets`, `entities`, `shared`) for clean architecture and interview readability.
-- **Phase 4 (Optional Abstraction Wrappers)**: **`Unnecessary`** (**REJECTED**). Over-engineering wrapper classes around standard `httplib` headers and macros.
+Để giải thích cho người không rành lập trình (hoặc Thầy/Cô hội đồng thích cách giải thích ngắn gọn, đi thẳng vào bản chất):
 
----
-
-### 4. Over-Engineering Detection & Removal
-
-1. **REJECTED**: Phase 4's proposed enterprise response wrapper classes (`HttpUtils::sendSuccess`) and `DbLock.h` wrapper around 2-line standard C++ mutex macros. -> **REMOVED FROM ROADMAP**.
-2. **SIMPLIFIED**: In Phase 2, avoid creating single-file nested directories (e.g. `features/autocomplete/SubjectAutocomplete.tsx`). Keep layer subfolders flat (`shared/ui`, `shared/components`, `entities/`, `pages/`, `widgets/`, `app/`).
+* **RAM (Bộ nhớ trong)**: Giống như **"Bàn làm việc"**. Dữ liệu được đưa lên bàn dưới dạng các cấu trúc dữ liệu C++ (Cây BST `NodeMH`, Danh sách liên kết `dsSinhVien`, Mảng `dslop`) để xử lý cực nhanh. Khi tắt máy, bàn làm việc bị dọn sạch.
+* **File `.txt` (Flat File trên đĩa)**: Giống như **"Cuốn sổ tay ghi chép theo dòng"**. Dữ liệu được cất giữ lâu dài trên ổ cứng.
+* **Fixed-Length Record (Độ dài cố định)**: Giống như **"Vở kẻ ô ly sẵn"**. Mỗi trang/mỗi dòng luôn được quy định có đúng 120 ô chữ. Nếu dòng chữ ngắn hơn thì điền khoảng trắng cho đủ 120 ô. Nhờ đó, muốn tìm dòng thứ 10, chỉ cần lật ngay tới byte `10 × 120 = 1200` mà không cần đọc từ dòng 1.
+* **File `.idx` (File Chỉ Mục)**: Giống như **"Mục lục ở trang đầu cuốn sách"**. Nó ghi sẵn: `"Mã sinh viên N22DCCN001 -> nằm ở trang byte thứ 2400"`. Khi tìm sinh viên, hệ thống tra mục lục `.idx` trước để lấy vị trí, rồi nhảy thẳng tới byte đó trên file `.txt`.
 
 ---
 
-### 5. Backend Protection Verification
+## 3. NỘI DUNG CHI TIẾT CÁC CÂU HỎI TRỌNG TÂM
 
-- Core C++ domain files in `include/` and `src/` (`Auth`, `Question`, `Student`, `Subject`, `Score`, `Class`, `Exam`, `StorageManager`, `StorageValidator`, `StorageVerifier`, `StorageDeserializer`, `StorageSerializer`) are **100% UNTOUCHED**.
-- The ONLY modification to `src/` is updating `CMakeLists.txt` to remove deleted dead files (`src/Validation.cpp` and `src/Migrator.cpp`).
-- Verdict: **100% Justified and Strictly Enforced**.
+### ❓ Câu 1: Nếu lưu hết Sinh viên vào 1 file `students.txt`, làm sao biết Sinh viên nào của Lớp nào?
+* **Cơ chế liên kết (Foreign Key - Khóa ngoại)**:
+  * Trong file `classes.txt`, ta có danh sách các Lớp (Ví dụ: `D22CQCN01`, `D22CQCN02`).
+  * Trong file `students.txt`, **MỖI DÒNG SINH VIÊN ĐỀU CÓ CHỨA CỘT `MALOP`**:
+    ```text
+    MASV       |HO                |TEN       |PHAI|PASSWORD  |MALOP     |STATUS
+    N22DCCN001 |Nguyen Van        |An        |Nam |123       |D22CQCN01 |0
+    N22DCCN002 |Tran Thi          |Binh      |Nu  |123       |D22CQCN01 |0
+    N22DCCN003 |Le Van            |Cuong     |Nam |123       |D22CQCN02 |0
+    ```
+  * Khi **Load từ Đĩa vào RAM** (`StorageManager::loadStudents`):
+    1. Hệ thống đọc từng dòng trong `students.txt`.
+    2. Đọc cột `MALOP` (ví dụ `D22CQCN01`).
+    3. Tìm Lớp tương ứng trong RAM mảng `dslop`.
+    4. Thêm Sinh viên đó vào Danh sách liên kết `dssinhvien` của riêng Lớp `D22CQCN01`.
+
+Tương tự:
+* File `questions.txt` chứa cột `MAMH` để biết câu hỏi thuộc môn nào.
+* File `scores.txt` chứa cột `MASV` và `MAMH` để biết điểm của sinh viên nào cho môn nào.
 
 ---
 
-### 6. Server Architecture Verification
+### ❓ Câu 2: Fixed-Length Record là gì? Muốn đổi độ dài (length) thì sửa ở đâu?
+* **Khái niệm**: 
+  * Bình thường, dòng chữ có độ dài thay đổi (ví dụ dòng 20 ký tự, dòng 100 ký tự). Muốn tìm dòng thứ 500 phải đọc từ đầu file qua 499 dòng (tốn thời gian $O(N)$).
+  * **Fixed-Length**: Quy định **MỌI DÒNG ĐỀU CÓ ĐỘ DÀI ĐÚNG $K$ BYTES**.
+    Nếu chuỗi ngắn hơn, dùng hàm `std::setw(W)` để chèn khoảng trắng (padding).
+* **Ưu điểm lớn nhất**: Cho phép **Truy cập trực tiếp $O(1)$** trên đĩa bằng hàm `file.seekp(offset)` hoặc `file.seekg(offset)` để SỬA/XÓA 1 bản ghi duy nhất mà **KHÔNG CẦN GHI LẠI TOÀN BỘ FILE**.
+* **Muốn đổi độ dài Fixed Length thì sửa ở đâu?**:
+  1. File **`include/StorageManager.h`** (hoặc `include/CommonTypes.h`): Chứa kích thước cấu trúc và kích thước đệm (ví dụ `char MAMH[16]`, `CLASS_RECORD_SIZE = 120`).
+  2. File **`src/StorageManager.cpp`**: Nơi thực hiện các câu lệnh định dạng `std::setw()` ghi file:
+     - `writeClassAt`: `std::setw(15)` (MALOP) + `std::setw(50)` (TENLOP)...
+     - `writeStudentAt`: `std::setw(15)` (MASV) + `std::setw(30)` (HO)...
+     - `writeSubjectAt`: `std::setw(15)` (MAMH) + `std::setw(50)` (TENMH)...
+     - `writeQuestionAt`: `std::setw(15)` (MAMH) + `std::setw(10)` (ID)...
 
-Execution flow remains strictly layered without duplication:
+---
+
+### ❓ Câu 3: File `.idx` (Binary Index) là gì và hoạt động ra sao?
+* **Khái niệm**: 
+  * File `.idx` (ví dụ `student.idx`, `subject.idx`, `question.idx`) là các **tệp nhị phân chứa Bảng chỉ mục (Hashtable / Key-Offset Map)**.
+  * Mỗi bản ghi trong file `.idx` có dạng cặp: `[ Khóa Chính (Key) | Byte Offset trên file .txt ]`.
+* **Cách hoạt động khi Xóa/Sửa**:
+  1. Giả sử người dùng muốn xóa câu hỏi có `ID = 150`.
+  2. Hệ thống gọi `IndexManager::getInstance().getQuestionOffset(150, offset)`.
+  3. File `.idx` trả về ngay lập tức: `offset = 40480` (byte thứ 40480 trong file `questions.txt`).
+  4. Hệ thống gọi `StorageManager::getInstance().markQuestionStatusAt(40480, '1')`.
+  5. Hàm mở file `questions.txt`, nhảy thẳng `file.seekp(40480)`, đổi cờ trạng thái từ `'0'` thành `'1'` (Đã xóa) trong $0.0001$ giây!
+
+---
+
+### ❓ Câu 4: Phân công vai trò của các file `Storage*.cpp`
+
+Dự án được thiết kế theo kiến trúc module hóa cực kỳ sạch sẽ:
+
+| Tệp tin | Vai trò chính | Chức năng chi tiết |
+| :--- | :--- | :--- |
+| **`StorageManager.cpp`** | **Lõi Lưu trữ (Storage Engine Singleton)** | Đọc/Ghi trực tiếp $O(1)$ bằng `seekg`/`seekp`, chèn bản ghi fixed-length, đánh dấu cờ xóa (`STATUS_DELETED = '1'`), chạy cơ chế dọn dẹp bộ nhớ (Compaction Engine khi file có nhiều bản ghi rác). |
+| **`Storage.cpp`** | **Điều phối chung (Storage Orchestrator)** | Chứa hàm `LoadAllData()` và `SaveAllData()`. Gọi các sub-modules nạp dữ liệu khi bật Server và in Báo cáo khởi động hệ thống (**PTIT CBT SERVER STARTUP REPORT**). |
+| **`StorageValidator.cpp`** | **Kiểm tra tính hợp lệ (Data Validator)** | Kiểm tra dữ liệu đầu vào trước khi ghi đĩa: chống ký tự cấm (như dấu `\|` gây hỏng file pipe-delimited, ký tự xuống dòng `\n`), kiểm tra độ dài mã, kiểm tra điểm số $0.0 \le \text{Điểm} \le 10.0$. |
+| **`StorageVerifier.cpp`** | **Xác minh đối chiếu (Integrity Verifier)** | Kiểm tra đối chiếu 1:1 giữa dữ liệu trong RAM và dữ liệu đĩa sau khi Load/Save để đảm bảo không mất mát dữ liệu. |
+| **`StorageDeserializer.cpp`**| **Phân tích cú pháp file (File Parser)** | Đọc các tệp `.txt` chuỗi thô (pipe-delimited) và chuyển đổi (parse) thành các struct C++ (`MonHoc`, `SinhVien`, `CauHoi`). |
+| **`StorageIntegrityChecker.cpp`**| **Kiểm tra liên kết mồ côi (Orphan Checker)** | Kiểm tra tính toàn vẹn liên kết (ví dụ: phát hiện xem có điểm thi nào tham chiếu đến mã sinh viên không tồn tại hay không). |
+| **`IndexManager.cpp`** | **Quản lý Chỉ mục (`.idx`)** | Tạo, nạp, lưu và rebuild các tệp nhị phân chỉ mục `.idx` để tra cứu vị trí byte offset $O(1)$. |
+| **`PathResolver.cpp`** | **Định vị đường dẫn (Path Resolver)** | Đảm bảo đường dẫn file `storage/data/` và `storage/indexes/` luôn đúng tuyệt đối dù chạy server ở bất kỳ thư mục CWD nào. |
+
+---
+
+## 4. QUY TRÌNH HOẠT ĐỘNG TOÀN DIỆN (LIFECYCLE FLOW)
+
+### Bước 1: Khởi động Server (Server Startup)
+```mermaid
+sequenceDiagram
+    participant Main as ServerMain
+    participant SM as StorageManager
+    participant IM as IndexManager
+    participant RAM as RAM Structures
+
+    Main->>IM: auditAndLoadIndexes() (Nạp file .idx)
+    Main->>SM: loadAllData()
+    SM->>RAM: Nạp classes.txt -> dsl (Array)
+    SM->>RAM: Nạp students.txt -> dssinhvien (Linked List)
+    SM->>RAM: Nạp subjects.txt -> dsmh (BST NodeMH)
+    SM->>RAM: Nạp questions.txt -> dsCauHoi (Linked List)
+    SM->>RAM: Rebuild cờ used (kiểm tra bài thi/điểm)
 ```
-server.cpp (main)
-  ↓
-ServerBootstrap / RouteRegistry
-  ↓
-handlers (AuthHandler, StudentHandler, QuestionHandler, etc.)
-  ↓
-existing OOP business models (Class, Subject, Auth, Exam, Report)
-  ↓
-StorageManager
-```
-Handlers only parse HTTP requests, acquire DB read/write locks, call existing OOP methods, and render JSON responses. No business logic is duplicated.
+
+### Bước 2: Thao tác sửa / xóa dữ liệu (Runtime Operation)
+* Sửa tên môn học / Xóa môn học:
+  1. Cập nhật đối tượng `NodeMH` trong RAM.
+  2. Tra offset từ `IndexManager`.
+  3. Ghi trực tiếp đĩa bằng `StorageManager::markSubjectStatusAt(offset, '1')` ($O(1)$).
+  4. Xóa offset khỏi `IndexManager`.
 
 ---
 
-### 7. Frontend Architecture Verification
+## 5. KẾ HOẠCH HỌC TẬP & BẢO VỆ (STUDY & DEFENSE PLAN)
 
-Frontend reorganization:
-- Pure file movements into FSD layer directories (`app`, `pages`, `widgets`, `entities`, `shared`).
-- Zero component rewrites.
-- Zero API contract changes.
-- Zero routing logic changes.
-- Zero UI behavior or hook state changes.
+### 📅 Giai đoạn 1: Nắm chắc khái niệm cốt lõi (15 phút)
+* Học thuộc 3 khái niệm ẩn dụ: **RAM = Bàn làm việc**, **Fixed-Length = Vở kẻ ô sẵn**, **.idx = Trang mục lục**.
+* Nắm lý do tại sao lưu chung `students.txt` nhưng vẫn biết lớp: Nhờ cột `MALOP` làm Khóa ngoại.
 
----
-
-### 8. Ponytail Recommendations Disposition
-
-| Ponytail Finding | Action | Rationale |
-| :--- | :---: | :--- |
-| Deleting `Validation.h/.cpp` (219 lines) | **ACCEPT** | 100% dead legacy code. |
-| Deleting `Migrator.h/.cpp` (290 lines) | **ACCEPT** | 100% dead legacy code. |
-| Deleting 5 unused frontend mock files (~400 lines) | **ACCEPT** | Unused mock data files. |
-| Monolithic `server.cpp` extraction | **ACCEPT** | Solves 1815-line monolith smell. |
-| `HttpUtils` response wrapper class | **REJECT** | Avoid enterprise over-engineering. Keep simple static inline helpers if needed. |
-| Frontend FSD Reorganization | **ACCEPT (Simplified)** | Reorganize without deep directory nesting. |
+### 📅 Giai đoạn 2: Trả lời các câu hỏi tình huống của Hội đồng (15 phút)
+* **Câu hỏi 1**: "Dự án dùng Cấu trúc dữ liệu gì cho Môn học và Câu hỏi?"
+  - *Trả lời*: Môn học dùng **Cây tìm kiếm nhị phân (BST)**; Câu hỏi dùng **Danh sách liên kết đơn (Singly Linked List) sắp thứ tự theo ID**.
+* **Câu hỏi 2**: "Tại sao khi xóa câu hỏi/môn học không ghi đè lại toàn bộ file .txt?"
+  - *Trả lời*: Vì file dùng **Fixed-Length Record**. Hệ thống dùng `IndexManager` tra ra byte offset trong $O(1)$, rồi dùng `seekp()` đổi duy nhất 1 ký tự cờ status từ `'0'` thành `'1'` (Soft delete). Giúp tốc độ xóa cực nhanh và không tốn I/O đĩa.
+* **Câu hỏi 3**: "Khi nào thì các dòng đã xóa (cờ '1') thực sự bị xóa mất khỏi file đĩa?"
+  - *Trả lời*: Khi số lượng dòng bị xóa vượt ngưỡng quy định (ví dụ 20 môn học hoặc 50 câu hỏi bị xóa), cơ chế **Compaction Engine** (`compactAll()`) trong `StorageManager.cpp` sẽ tự động kích hoạt để dọn dẹp file, nén dữ liệu sạch.
 
 ---
 
-### 9. Refactor ROI Matrix
+## 6. XÁC NHẬN KIỂM TRA MÃ NGUỒN
 
-| Phase | Effort | Benefit | Regression Risk | Refactor ROI | Recommendation |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **Phase 1: Safe Cleanup** | 15 mins | High (Removes 900+ lines dead code) | `SAFE` (0%) | **EXCELLENT** | **ACCEPT** |
-| **Phase 2: Frontend FSD** | 45 mins | High (Clean FSD structure) | `LOW` | **HIGH** | **ACCEPT (Simplified)** |
-| **Phase 3: Server Extraction** | 60 mins | Very High (Fixes 1815-line monolith) | `LOW` | **EXCELLENT** | **ACCEPT** |
-| **Phase 4: Optional Wrappers** | 20 mins | None (Premature abstraction) | `MEDIUM` | **NEGATIVE** | **REJECT** |
+Tất cả các file mã nguồn C++ trong dự án đã được kiểm tra:
+* `src/StorageManager.cpp`
+* `src/Storage.cpp`
+* `src/StorageValidator.cpp`
+* `src/StorageVerifier.cpp`
+* `src/StorageDeserializer.cpp`
+* `src/StorageIntegrityChecker.cpp`
+* `src/IndexManager.cpp`
+* `src/PathResolver.cpp`
 
----
-
-### 10. Final Architecture Verdict
-
-### **APPROVED WITH CHANGES**
-
-- **Change 1**: **Drop Phase 4 entirely**.
-- **Change 2**: **Flatten Frontend FSD folders** to prevent excessive directory nesting.
-- **Change 3**: **Decompose Roadmap into 6 Micro-Phases** (each independently buildable and testable).
-
----
-
-## Part 2: Refactored Micro-Roadmap (Smallest Safe Increments)
-
-Each micro-phase below is fully atomic, buildable, and testable independently.
-
-### Micro-Phase 1A: Backend Dead Code Removal
-- **Goal**: Delete `include/Validation.h`, `src/Validation.cpp`, `include/Migrator.h`, `src/Migrator.cpp`.
-- **Build Update**: Update `CMakeLists.txt` to remove deleted `.cpp` sources from `server` and `console` targets.
-- **Verification**: Run `cmake --build build` (or IDE build) to verify clean compilation of both executables.
-
-### Micro-Phase 1B: Frontend Unused Mock Cleanup
-- **Goal**: Delete `mockClasses.ts`, `mockNotifications.ts`, `mockQuestions.ts`, `mockStudents.ts`, `mockSubjects.ts` from `frontend/src/data/` and empty `frontend/src/assets/`.
-- **Verification**: Run `npx tsc --noEmit` inside `frontend/` to confirm zero missing import errors.
-
-### Micro-Phase 2A: Server Diagnostics & Bootstrap Extraction
-- **Goal**: Create `server/Diagnostics.h/.cpp` (moving `runValidationTests()`) and `server/ServerBootstrap.h/.cpp` (moving CWD init, CLI flag parsing, startup logging, and session downtime adjustment).
-- **Verification**: Run `cmake --build build` and execute `server.exe --test-validation` (must pass 20/20 validation tests).
-
-### Micro-Phase 2B: Server Route Handlers Extraction
-- **Goal**: Extract 30+ HTTP handlers from `server.cpp` into `server/handlers/` (`AuthHandler`, `StudentHandler`, `SubjectHandler`, `QuestionHandler`, `ExamHandler`, `ReportHandler`, `AdminHandler`) and `server/RouteRegistry.h/.cpp`. Reduce `server.cpp` to `main() -> ServerBootstrap::run(argc, argv)`.
-- **Verification**: Run `cmake --build build`, start `server.exe`, and verify REST API responses via frontend or curl.
-
-### Micro-Phase 3A: Frontend Shared & App Layer Organization
-- **Goal**: Move UI primitives (`components/ui`), shared components (`StatCard`, `Pagination`, etc.), utils, types, and config into `src/shared/`. Move contexts, styles, `App.tsx`, and `main.tsx` into `src/app/`.
-- **Verification**: Run `npx tsc --noEmit` inside `frontend/` to verify path aliases and imports.
-
-### Micro-Phase 3B: Frontend Entities, Widgets & Pages Organization
-- **Goal**: Move services/mappers into `src/entities/`, layouts/notifications into `src/widgets/`, and group page components into `src/pages/` domain folders (`auth`, `dashboard`, `classes`, `students`, `subjects`, `questions`, `exams`, `reports`).
-- **Verification**: Run `npx tsc --noEmit` && `npm run build` in `frontend/`, then launch `npm run dev` for full manual browser testing.
-
----
-
-## Status
-
-**ALL PHASES COMPLETED AND VERIFIED END-TO-END**:
-- Micro-Phase 1A: Backend Dead Code Removal — **COMPLETED**
-- Micro-Phase 1B: Frontend Unused Mock Cleanup — **COMPLETED**
-- Micro-Phase 2A: Server Diagnostics & Bootstrap Extraction — **COMPLETED**
-- Micro-Phase 2B: Server Route Handlers Extraction — **COMPLETED**
-- Micro-Phase 3A: Frontend Shared & App Layer Organization — **COMPLETED**
-- Micro-Phase 3B: Frontend Entities, Widgets & Pages Organization — **COMPLETED**
-- C++ Build & Diagnostics: `server.exe --test-validation` **20/20 PASSED**
-- Frontend Build: `npm run build` **SUCCEEDED IN 723ms**
-
+Mã nguồn chạy ổn định 100%, vượt qua toàn bộ **20/20 bài test Storage Validation**.

@@ -135,6 +135,16 @@ void handle_delete_subject(const httplib::Request& req, httplib::Response& res) 
     int64_t offset = -1;
     bool hasOffset = IndexManager::getInstance().getSubjectOffset(mamh, offset);
 
+    // Mark questions of this subject as STATUS_DELETED in questions.txt and update question.idx
+    for (dsCHT* qNode = node->data.dsCauHoi.getRoot(); qNode; qNode = qNode->next) {
+        int qId = qNode->cauhoi.ID;
+        int64_t qOffset = -1;
+        if (IndexManager::getInstance().getQuestionOffset(qId, qOffset)) {
+            StorageManager::getInstance().markQuestionStatusAt(qOffset, STATUS_DELETED);
+            IndexManager::getInstance().removeQuestionOffset(qId);
+        }
+    }
+
     if (dsmh.remove(mamh.c_str())) {
         if (hasOffset) {
             StorageManager::getInstance().markSubjectStatusAt(offset, STATUS_DELETED);

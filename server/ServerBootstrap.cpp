@@ -57,7 +57,10 @@ int ServerBootstrap::run(int argc, char* argv[]) {
 
     std::cout << "[STARTUP LOG] [BEGIN] svr.listen(0.0.0.0, 8080)\n";
     std::cout << "Server running on http://localhost:8080\n";
-    svr.listen("0.0.0.0", 8080);
+    bool listenSuccess = svr.listen("0.0.0.0", 8080);
+    if (!listenSuccess) {
+        std::cerr << "[SERVER ERROR] Cannot bind to port 8080! Port is already in use by another server instance or application.\n";
+    }
     std::cout << "[STARTUP LOG] [END] svr.listen(0.0.0.0, 8080)\n";
 
     return 0;

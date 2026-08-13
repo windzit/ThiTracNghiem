@@ -3,140 +3,226 @@
 
 namespace fs = std::filesystem;
 
-// Static member definition
+// Static member
 std::string PathResolver::s_execDir = "";
 
-void PathResolver::init(const std::string& executablePath) {
-    try {
-        fs::path execPath = fs::absolute(fs::path(executablePath));
+
+// ============================================================
+// INIT
+// ============================================================
+
+void PathResolver::init(const std::string& executablePath)
+{
+    try
+    {
+        fs::path execPath = fs::absolute(executablePath);
+
+        // Lấy thư mục chứa file executable
         s_execDir = execPath.parent_path().string();
-        std::cout << "[PathResolver] Initialized. Executable dir: " << s_execDir << "\n";
-    } catch (...) {
+
+        std::cout
+            << "[PathResolver] Executable dir: "
+            << s_execDir << '\n';
+    }
+    catch (...)
+    {
         s_execDir = "";
-        std::cerr << "[PathResolver] Warning: Could not resolve executable path. Falling back to CWD.\n";
-    }
 
-    migrateLegacyStorage();
+        std::cerr
+            << "[PathResolver] Cannot resolve executable path.\n";
+    }
 }
 
-std::string PathResolver::getStorageDir() {
-    // Priority 1: Traverse up parent directories from executable directory (supports arbitrary build depth like out/build/x64-Debug)
-    if (!s_execDir.empty()) {
-        fs::path cur = fs::path(s_execDir);
-        for (int level = 0; level <= 5; level++) {
-            fs::path candidate = cur / "storage";
-            if (fs::exists(candidate) && fs::is_directory(candidate)) {
-                // Verify that candidate directory actually contains storage data files, data subfolder, or is a valid project storage
-                if (fs::exists(candidate / "data") || fs::exists(candidate / "classes.txt") || fs::exists(candidate / "metadata.txt") || fs::exists(candidate / "subjects.txt")) {
-                    return fs::absolute(candidate).string();
-                }
-            }
-            if (!cur.has_parent_path() || cur == cur.parent_path()) break;
-            cur = cur.parent_path();
-        }
 
-        // Second pass: return any existing storage directory found walking up
-        cur = fs::path(s_execDir);
-        for (int level = 0; level <= 5; level++) {
-            fs::path candidate = cur / "storage";
-            if (fs::exists(candidate) && fs::is_directory(candidate)) {
-                return fs::absolute(candidate).string();
+// ============================================================
+// CHECK STORAGE
+// ============================================================
+
+bool isValidStorage(const fs::path& storage)
+{
+    // storage phải tồn tại
+    if (!fs::exists(storage))
+        return false;
+
+    // storage phải là thư mục
+    if (!fs::is_directory(storage))
+        return false;
+
+    // storage phải có data/
+    fs::path dataDir = storage / "data";
+
+    if (!fs::exists(dataDir))
+        return false;
+
+    if (!fs::is_directory(dataDir))
+        return false;
+
+    return true;
+}
+
+
+// ============================================================
+// GET STORAGE DIRECTORY
+// ============================================================
+
+std::string PathResolver::getStorageDir()
+{
+    // --------------------------------------------------------
+    // PRIORITY 1
+    // Tìm storage từ thư mục chứa executable
+    // --------------------------------------------------------
+
+    if (!s_execDir.empty())
+    {
+        fs::path current = s_execDir;
+
+        while (true)
+        {
+            fs::path storage = current / "storage";
+
+            // Không lấy storage nằm bên trong out/build
+            std::string path = storage.string();
+
+            bool isBuildFolder =
+                path.find("out\\build") != std::string::npos ||
+                path.find("out/build") != std::string::npos;
+
+            if (!isBuildFolder && isValidStorage(storage))
+            {
+                return fs::absolute(storage).string();
             }
-            if (!cur.has_parent_path() || cur == cur.parent_path()) break;
-            cur = cur.parent_path();
+
+            // Nếu đã tới thư mục gốc thì dừng
+            if (!current.has_parent_path() ||
+                current == current.parent_path())
+            {
+                break;
+            }
+
+            // Đi lên một thư mục
+            current = current.parent_path();
         }
     }
 
-    // Priority 2: Fallback — CWD-relative search (legacy, warn loudly)
-    std::cerr << "[PathResolver] Warning: executable-relative storage not found. Falling back to CWD search.\n";
-    fs::path cwdCandidates[] = {
-        "storage",
-        "../storage",
-        "../../storage",
-        "../../../storage"
+
+    // --------------------------------------------------------
+    // PRIORITY 2
+    // Tìm storage từ Current Working Directory
+    // --------------------------------------------------------
+
+    fs::path cwd = fs::current_path();
+
+    fs::path candidates[] =
+    {
+        cwd / "storage",
+        cwd / "../storage",
+        cwd / "../../storage",
+        cwd / "../../../storage"
     };
-    for (const auto& p : cwdCandidates) {
-        if (fs::exists(p) && fs::is_directory(p)) {
-            return fs::absolute(p).string();
+
+    for (const auto& storage : candidates)
+    {
+        if (isValidStorage(storage))
+        {
+            return fs::absolute(storage).string();
         }
     }
 
-    // Last resort: create storage/ next to executable (or CWD if execDir unknown)
-    fs::path defaultBase = s_execDir.empty() ? fs::current_path() : fs::path(s_execDir);
-    fs::path defaultPath = defaultBase / "storage";
-    fs::create_directories(defaultPath);
-    std::cerr << "[PathResolver] Created fallback storage dir: " << defaultPath.string() << "\n";
-    return fs::absolute(defaultPath).string();
+
+    // --------------------------------------------------------
+    // PRIORITY 3
+    // Không tìm thấy → tạo storage mới
+    // --------------------------------------------------------
+
+    fs::path base =
+        s_execDir.empty()
+        ? fs::current_path()
+        : fs::path(s_execDir);
+
+    fs::path storage = base / "storage";
+
+    fs::create_directories(storage / "data");
+    fs::create_directories(storage / "indexes");
+    fs::create_directories(storage / "backup");
+
+    std::cerr
+        << "[PathResolver] Created storage at: "
+        << storage << '\n';
+
+    return fs::absolute(storage).string();
 }
 
-std::string PathResolver::getDataDir() {
-    fs::path storagePath(getStorageDir());
-    fs::path dataPath = storagePath / "data";
-    if (!fs::exists(dataPath)) {
-        std::error_code ec;
-        fs::create_directories(dataPath, ec);
-    }
-    return dataPath.string();
+
+// ============================================================
+// DATA DIRECTORY
+// ============================================================
+
+std::string PathResolver::getDataDir()
+{
+    fs::path dataDir =
+        fs::path(getStorageDir()) / "data";
+
+    fs::create_directories(dataDir);
+
+    return dataDir.string();
 }
 
-std::string PathResolver::getIndexDir() {
-    fs::path storagePath(getStorageDir());
-    fs::path indexPath = storagePath / "indexes";
-    if (!fs::exists(indexPath)) {
-        std::error_code ec;
-        fs::create_directories(indexPath, ec);
-    }
-    return indexPath.string();
+
+// ============================================================
+// INDEX DIRECTORY
+// ============================================================
+
+std::string PathResolver::getIndexDir()
+{
+    fs::path indexDir =
+        fs::path(getStorageDir()) / "indexes";
+
+    fs::create_directories(indexDir);
+
+    return indexDir.string();
 }
 
-std::string PathResolver::getBackupDir() {
-    fs::path storagePath(getStorageDir());
-    fs::path backupPath = storagePath / "backup";
-    if (!fs::exists(backupPath)) {
-        std::error_code ec;
-        fs::create_directories(backupPath, ec);
-    }
-    return backupPath.string();
+
+// ============================================================
+// BACKUP DIRECTORY
+// ============================================================
+
+std::string PathResolver::getBackupDir()
+{
+    fs::path backupDir =
+        fs::path(getStorageDir()) / "backup";
+
+    fs::create_directories(backupDir);
+
+    return backupDir.string();
 }
 
-std::string PathResolver::getFilePath(const std::string& filename) {
-    if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".idx") {
+
+// ============================================================
+// GET FILE PATH
+// ============================================================
+
+std::string PathResolver::getFilePath(
+    const std::string& filename)
+{
+    // File .idx → indexes/
+    if (filename.size() >= 4 &&
+        filename.substr(filename.size() - 4) == ".idx")
+    {
         return getIndexPath(filename);
     }
-    fs::path dir(getDataDir());
-    return (dir / filename).string();
+
+    // File bình thường → data/
+    return (fs::path(getDataDir()) / filename).string();
 }
 
-std::string PathResolver::getIndexPath(const std::string& indexFilename) {
-    fs::path dir(getIndexDir());
-    return (dir / indexFilename).string();
+
+// ============================================================
+// GET INDEX FILE PATH
+// ============================================================
+
+std::string PathResolver::getIndexPath(
+    const std::string& filename)
+{
+    return (fs::path(getIndexDir()) / filename).string();
 }
-
-void PathResolver::migrateLegacyStorage() {
-    std::string rootDirStr = getStorageDir();
-    fs::path rootDir(rootDirStr);
-    fs::path dataDir(getDataDir());
-    fs::path indexDir(getIndexDir());
-    fs::path backupDir(getBackupDir());
-
-    const char* targetFiles[] = {
-        "classes.txt", "students.txt", "subjects.txt", "questions.txt",
-        "scores.txt", "exam_history.txt", "exam_sessions.txt",
-        "metadata.txt", "SystemSettings.txt", "transaction.log"
-    };
-
-    for (const char* fname : targetFiles) {
-        fs::path oldFile = rootDir / fname;
-        fs::path newFile = dataDir / fname;
-        if (fs::exists(oldFile) && !fs::is_directory(oldFile) && !fs::exists(newFile)) {
-            std::error_code ec;
-            fs::rename(oldFile, newFile, ec);
-            if (ec) {
-                fs::copy_file(oldFile, newFile, fs::copy_options::overwrite_existing, ec);
-                fs::remove(oldFile, ec);
-            }
-            std::cout << "[PathResolver] Migrated legacy file: " << fname << " -> storage/data/" << fname << "\n";
-        }
-    }
-}
-

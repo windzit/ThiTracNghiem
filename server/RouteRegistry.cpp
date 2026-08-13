@@ -1,4 +1,8 @@
 #include "RouteRegistry.h"
+#include "ServerContext.h"
+#include <iostream>
+#include <exception>
+
 #include "handlers/AuthHandler.h"
 #include "handlers/ClassHandler.h"
 #include "handlers/StudentHandler.h"
@@ -7,6 +11,22 @@
 #include "handlers/ExamHandler.h"
 #include "handlers/ReportHandler.h"
 #include "handlers/AdminHandler.h"
+
+using HandlerFunc = void(*)(const httplib::Request&, httplib::Response&);
+
+static httplib::Server::Handler wrap_safe(HandlerFunc handler) {
+    return [handler](const httplib::Request& req, httplib::Response& res) {
+        try {
+            handler(req, res);
+        } catch (const std::exception& e) {
+            std::cerr << "[SERVER EXCEPTION CATCH] " << req.method << " " << req.path << " -> " << e.what() << std::endl;
+            error_response(res, std::string("Internal Server Error: ") + e.what(), 500);
+        } catch (...) {
+            std::cerr << "[SERVER EXCEPTION CATCH] " << req.method << " " << req.path << " -> Unknown exception" << std::endl;
+            error_response(res, "Internal Server Error: Unknown exception", 500);
+        }
+    };
+}
 
 void registerRoutes(httplib::Server& svr) {
     svr.set_default_headers({
@@ -24,53 +44,54 @@ void registerRoutes(httplib::Server& svr) {
     });
 
     // Auth
-    svr.Post("/api/login", handle_login);
-    svr.Post("/api/logout", handle_logout);
+    svr.Post("/api/login", wrap_safe(handle_login));
+    svr.Post("/api/logout", wrap_safe(handle_logout));
 
     // Admin / System
-    svr.Post("/api/admin/save", handle_admin_save);
-    svr.Post("/api/admin/rebuild-used", handle_rebuild_used);
-    svr.Get("/api/system/settings", handle_get_system_settings);
-    svr.Post("/api/system/settings", handle_post_system_settings);
+    svr.Post("/api/admin/save", wrap_safe(handle_admin_save));
+    svr.Post("/api/admin/rebuild-used", wrap_safe(handle_rebuild_used));
+    svr.Get("/api/system/settings", wrap_safe(handle_get_system_settings));
+    svr.Post("/api/system/settings", wrap_safe(handle_post_system_settings));
 
     // Class
-    svr.Get("/api/classes", handle_get_classes);
-    svr.Get("/api/classes/:id", handle_get_class_by_id);
-    svr.Post("/api/classes", handle_create_class);
-    svr.Put("/api/classes/:id", handle_update_class);
-    svr.Delete("/api/classes/:id", handle_delete_class);
+    svr.Get("/api/classes", wrap_safe(handle_get_classes));
+    svr.Get("/api/classes/:id", wrap_safe(handle_get_class_by_id));
+    svr.Post("/api/classes", wrap_safe(handle_create_class));
+    svr.Put("/api/classes/:id", wrap_safe(handle_update_class));
+    svr.Delete("/api/classes/:id", wrap_safe(handle_delete_class));
 
     // Student
-    svr.Get("/api/students", handle_get_students);
-    svr.Get("/api/students/:id", handle_get_student_by_id);
-    svr.Post("/api/students", handle_create_student);
-    svr.Post("/api/students/bulk-delete", handle_bulk_delete_students);
-    svr.Put("/api/students/:id", handle_update_student);
-    svr.Delete("/api/students/:id", handle_delete_student);
+    svr.Get("/api/students", wrap_safe(handle_get_students));
+    svr.Get("/api/students/:id", wrap_safe(handle_get_student_by_id));
+    svr.Post("/api/students", wrap_safe(handle_create_student));
+    svr.Post("/api/students/bulk-delete", wrap_safe(handle_bulk_delete_students));
+    svr.Put("/api/students/:id", wrap_safe(handle_update_student));
+    svr.Delete("/api/students/:id", wrap_safe(handle_delete_student));
 
     // Subject
-    svr.Get("/api/subjects", handle_get_subjects);
-    svr.Get("/api/subjects/:id", handle_get_subject_by_id);
-    svr.Post("/api/subjects", handle_create_subject);
-    svr.Put("/api/subjects/:id", handle_update_subject);
-    svr.Delete("/api/subjects/:id", handle_delete_subject);
+    svr.Get("/api/subjects", wrap_safe(handle_get_subjects));
+    svr.Get("/api/subjects/:id", wrap_safe(handle_get_subject_by_id));
+    svr.Post("/api/subjects", wrap_safe(handle_create_subject));
+    svr.Put("/api/subjects/:id", wrap_safe(handle_update_subject));
+    svr.Delete("/api/subjects/:id", wrap_safe(handle_delete_subject));
 
     // Question
-    svr.Post("/api/questions", handle_create_question);
-    svr.Post("/api/questions/bulk-delete", handle_bulk_delete_questions);
-    svr.Put("/api/questions/:id", handle_update_question);
-    svr.Put("/api/questions/:id/restore", handle_restore_question);
-    svr.Post("/api/questions/:id/restore", handle_restore_question);
-    svr.Delete("/api/questions/:id", handle_delete_question);
+    svr.Post("/api/questions", wrap_safe(handle_create_question));
+    svr.Post("/api/questions/bulk-delete", wrap_safe(handle_bulk_delete_questions));
+    svr.Put("/api/questions/:id", wrap_safe(handle_update_question));
+    svr.Put("/api/questions/:id/restore", wrap_safe(handle_restore_question));
+    svr.Post("/api/questions/:id/restore", wrap_safe(handle_restore_question));
+    svr.Delete("/api/questions/:id", wrap_safe(handle_delete_question));
 
     // Exam
-    svr.Post("/api/exams/start", handle_exam_start);
-    svr.Get("/api/exams/resume", handle_exam_resume);
-    svr.Put("/api/exams/answer", handle_exam_answer);
-    svr.Post("/api/exams/submit", handle_exam_submit);
+    svr.Post("/api/exams/start", wrap_safe(handle_exam_start));
+    svr.Get("/api/exams/resume", wrap_safe(handle_exam_resume));
+    svr.Put("/api/exams/answer", wrap_safe(handle_exam_answer));
+    svr.Post("/api/exams/submit", wrap_safe(handle_exam_submit));
 
     // Report
-    svr.Get("/api/reports/exam", handle_report_exam);
-    svr.Get("/api/reports/scoreboard", handle_report_scoreboard);
-    svr.Delete("/api/scores", handle_delete_score);
+    svr.Get("/api/reports/exam", wrap_safe(handle_report_exam));
+    svr.Get("/api/reports/scoreboard", wrap_safe(handle_report_scoreboard));
+    svr.Delete("/api/scores", wrap_safe(handle_delete_score));
 }
+

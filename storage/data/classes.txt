@@ -19,4 +19,3 @@ D22CQMR02-N    |Lop Mang May Tinh 2 Khoa 2022                     |0
 D22CQMR03-N    |Lop Mang May Tinh 3 Khoa 2022                     |0
 D22CQMR04-N    |Lop Mang May Tinh 4 Khoa 2022                     |0
 D22CQMR05-N    |Lop Mang May Tinh 5 Khoa 2022                     |0
-DSD            |Cong Nghe Thong Tin                               |0

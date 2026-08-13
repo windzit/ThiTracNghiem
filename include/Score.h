@@ -3,7 +3,7 @@
 extern std::string PATH_FOLDER_SCORELIST;
 
 struct DiemThi {
-    char MAMH[15];
+    char MAMH[16] = {0};
     float DIEM;
 };
 

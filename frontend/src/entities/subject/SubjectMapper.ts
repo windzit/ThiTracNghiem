@@ -1,4 +1,4 @@
-﻿import type { BackendSubject } from '@/shared/types/backend';
+import type { BackendSubject } from '@/shared/types/backend';
 import type { Subject } from '@/shared/types';
 
 export class SubjectMapper {
@@ -15,6 +15,7 @@ export class SubjectMapper {
       questionCount: backend.questionCount ?? 0,
       createdAt: new Date().toLocaleDateString('vi-VN'),
       status: backend.used ? 'hidden' : 'active',
+      used: backend.used ?? false,
       description: `Môn học ${backend.tenmh}`,
     };
   }

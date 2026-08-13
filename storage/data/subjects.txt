@@ -1,22 +1,21 @@
 MAMH           |TENMH                                             |U|S
-INT1339        |Lap trinh C++                                     |0|0
-INT13145       |Cau truc du lieu va giai thuat                    |0|0
-INT1332        |Co so du lieu                                     |0|0
-INT1415        |Mang may tinh                                     |0|0
-INT1301        |He dieu hanh                                      |0|0
-INT1302        |Kien truc may tinh                                |0|0
-INT1303        |Tri tue nhan tao                                  |0|0
-INT1304        |Hoc may                                           |0|0
-INT1305        |Phan tich thiet ke he thong                       |0|0
-INT1306        |Cong nghe phan mem                                |0|0
-INT1307        |Lap trinh Java                                    |0|0
-INT1308        |Lap trinh Web                                     |0|0
-INT1309        |Lap trinh Huong doi tuong                         |0|0
-INT1310        |Do hoa may tinh                                   |0|0
-INT1311        |Xu ly anh                                         |0|0
-INT1312        |An toan thong tin                                 |0|0
-INT1313        |Danh gia hieu nang he thong                       |0|0
-INT1314        |Dien toan dam may                                 |0|0
-INT1315        |Phat trien ung dung di dong                       |0|0
-INT1316        |Quan tri du an CNTT                               |0|0
-INT2006        |Dau Buoi Re Rach                                  |0|1
+INT1339        |Lap Trinh C++                                     |0|0
+INT13145       |Cau Truc Du Lieu Va Giai Thuat                    |0|0
+INT1332        |Co So Du Lieu                                     |0|0
+INT1415        |Mang May Tinh                                     |0|0
+INT1301        |He Dieu Hanh                                      |0|0
+INT1302        |Kien Truc May Tinh                                |0|0
+INT1303        |Tri Tue Nhan Tao                                  |0|0
+INT1304        |Hoc May                                           |0|0
+INT1305        |Phan Tich Thiet Ke He Thong                       |0|0
+INT1306        |Cong Nghe Phan Mem                                |0|0
+INT1307        |Lap Trinh Java                                    |0|0
+INT1308        |Lap Trinh Web                                     |0|0
+INT1309        |Lap Trinh Huong Doi Tuong                         |0|0
+INT1310        |Do Hoa May Tinh                                   |0|0
+INT1311        |Xu Ly Anh                                         |0|0
+INT1312        |An Toan Thong Tin                                 |0|0
+INT1313        |Danh Gia Hieu Nang He Thong                       |0|0
+INT1314        |Dien Toan Dam May                                 |0|0
+INT1315        |Phat Trien Ung Dung Di Dong                       |0|0
+INT1316        |Quan Tri Du An Cntt                               |0|0

@@ -245,4 +245,29 @@ export const questionService = {
       }
     }
   },
+
+  /**
+   * Khôi phục hàng loạt câu hỏi bị vô hiệu hóa
+   * Sử dụng Promise.allSettled để xử lý partial success
+   */
+  bulkRestoreQuestions: async (
+    items: Array<{ id: string; mamh: string }>
+  ): Promise<{ successCount: number; failCount: number; total: number }> => {
+    const results = await Promise.allSettled(
+      items.map(item => questionService.restoreQuestion(item.id, item.mamh))
+    )
+
+    let successCount = 0
+    let failCount = 0
+
+    results.forEach(res => {
+      if (res.status === 'fulfilled' && res.value.success) {
+        successCount++
+      } else {
+        failCount++
+      }
+    })
+
+    return { successCount, failCount, total: items.length }
+  },
 }

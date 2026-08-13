@@ -8,7 +8,7 @@ using namespace std;
 
 
 struct MonHoc {
-    char MAMH[15];
+    char MAMH[16] = {0};
     std::string TENMH;
     bool used = false;
     Question dsCauHoi;
@@ -38,9 +38,9 @@ public:
     }
 
     bool insert(const MonHoc& monhoc);
-    bool remove(const char MAMH[15]);
-    bool update(const char MAMH[15], const std::string& newTENMH);
-    NodeMH* find(const char MAMH[15]);
+    bool remove(const char MAMH[16]);
+    bool update(const char MAMH[16], const std::string& newTENMH);
+    NodeMH* find(const char MAMH[16]);
 
     bool save();
     bool load();

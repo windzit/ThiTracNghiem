@@ -1,4 +1,4 @@
-﻿import type { DifficultyValue } from "@/shared/config/difficulty"
+import type { DifficultyValue } from "@/shared/config/difficulty"
 
 export interface ClassItem {
   id: string
@@ -38,6 +38,7 @@ export interface Subject {
   questionCount: number
   createdAt: string
   status: "active" | "hidden"
+  used?: boolean
   description?: string
   note?: string
 }

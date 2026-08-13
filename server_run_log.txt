@@ -1,0 +1,87 @@
+﻿[PathResolver] Initialized. Executable dir: C:\Users\Legion 5\OneDrive\Desktop\ThiTracNghiem\build\Debug
+[STARTUP LOG] [BEGIN] LoadAllData
+[STARTUP LOG] [BEGIN] loadAllData
+[STARTUP LOG] [BEGIN] loadMetadata from: C:\Users\Legion 5\OneDrive\Desktop\ThiTracNghiem\storage\data\metadata.txt
+[STARTUP LOG] [END] loadMetadata (LAST_QUESTION_ID: 200)
+[STARTUP LOG] [BEGIN] loadClasses
+[STARTUP LOG] [END] loadClasses
+[STARTUP LOG] [BEGIN] loadStudents
+[STARTUP LOG] [END] loadStudents
+[STARTUP LOG] [BEGIN] loadSubjects
+[STARTUP LOG] [END] loadSubjects
+[STARTUP LOG] [BEGIN] loadQuestions
+[STARTUP LOG] [END] loadQuestions
+[STARTUP LOG] [BEGIN] loadScores
+[STARTUP LOG] [END] loadScores
+[STARTUP LOG] [BEGIN] loadExamSessions
+[STARTUP LOG] [END] loadExamSessions
+[STARTUP LOG] [BEGIN] Rebuild derived 'used' flags
+[STARTUP LOG] [END] Rebuild derived 'used' flags
+[STARTUP LOG] [BEGIN] StorageIntegrityChecker::auditStorageIntegrity
+[StorageIntegrityChecker] Storage integrity audit PASSED (0 orphan references).
+[STARTUP LOG] [END] StorageIntegrityChecker::auditStorageIntegrity
+[STARTUP LOG] [BEGIN] rebuildIndexes
+[STARTUP LOG] [END] rebuildIndexes
+[STARTUP LOG] [END] loadAllData
+
+======================================================================
+                  PTIT CBT SERVER STARTUP REPORT                      
+======================================================================
+[INDEX AUDIT] Checking runtime indexes (.idx)...
+  [*] Class Index     : OK (loaded from class.idx)
+  [*] Student Index   : OK (loaded from student.idx)
+  [*] Subject Index   : OK (loaded from subject.idx)
+  [*] Question Index  : OK (loaded from question.idx)
+  [*] History Index   : OK (loaded from history.idx)
+  --------------------------------------------------------------------
+  [*] Index Status    : All indexes up to date (No rebuild needed).
+
+Loading storage from disk...
+
+  [OK] Classes        : 20
+  [OK] Students       : 200
+  [OK] Subjects       : 15
+  [OK] Questions      : 150
+  [OK] Scores         : 1
+  [OK] Exam Sessions  : 0
+
+----------------------------------------------------------------------
+LOADING TIME STATISTICS
+----------------------------------------------------------------------
+  [*] Loading Classes & Students : 70 ms
+  [*] Loading Subjects & Questions: 70 ms
+  -----------------------------------------
+----------------------------------------------------------------------
+STORAGE COMPACTION THRESHOLD AUDIT (Soft-Deleted vs Threshold)
+----------------------------------------------------------------------
+  [*] Classes   : [--------------------]   0% (0 / 10 deleted)
+  [*] Students  : [--------------------]   0% (0 / 50 deleted)
+  [*] Subjects  : [=====---------------]  25% (5 / 20 deleted)
+  [*] Questions : [--------------------]   0% (0 / 50 deleted)
+  --------------------------------------------------------------------
+  [*] Compaction Status: OK (Storage healthy, no compaction required)
+
+----------------------------------------------------------------------
+STORAGE CONSISTENCY AUDIT
+----------------------------------------------------------------------
+  [OK] classes.txt consistent: 20 active records match RAM.
+  [OK] students.txt consistent: 200 active records match RAM.
+  [OK] subjects.txt consistent: 15 active records match RAM.
+  [OK] questions.txt consistent: 150 active records match RAM.
+  [OK] No duplicate subject codes detected.
+  [OK] No duplicate student IDs detected.
+
+======================================================================
+[DEVELOPMENT MODE NOTICE]
+Manual changes inside storage/ require RESTARTING the server.
+Browser Refresh alone will NOT reload storage files into server RAM.
+======================================================================
+
+[STARTUP LOG] [END] LoadAllData
+[STARTUP LOG] [BEGIN] loadSystemSettings
+[STARTUP LOG] [END] loadSystemSettings
+============================================================
+Loaded System Settings:
+- Fullscreen Supervision: OFF
+============================================================
+[STARTUP LOG] [BEGIN] adjustSessionsForDowntime

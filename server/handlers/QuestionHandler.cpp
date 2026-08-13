@@ -64,7 +64,9 @@ void handle_update_question(const httplib::Request& req, httplib::Response& res)
     DB_WRITE_LOCK;
     string idStr = get_path_param(req, "id");
     if (idStr.empty()) { error_response(res, "id required", 400); return; }
-    int id = std::stoi(idStr);
+    int id = 0;
+    try { id = std::stoi(idStr); }
+    catch (...) { error_response(res, "Invalid question id", 400); return; }
     json body;
     try { body = json::parse(req.body); }
     catch (...) { error_response(res, "Invalid JSON", 400); return; }
@@ -117,7 +119,9 @@ void handle_delete_question(const httplib::Request& req, httplib::Response& res)
     DB_WRITE_LOCK;
     string idStr = get_path_param(req, "id");
     if (idStr.empty()) { error_response(res, "id required", 400); return; }
-    int id = std::stoi(idStr);
+    int id = 0;
+    try { id = std::stoi(idStr); }
+    catch (...) { error_response(res, "Invalid question id", 400); return; }
     string mamh = req.get_param_value("mamh");
 
     NodeMH* foundNode = nullptr;
@@ -253,7 +257,9 @@ void handle_restore_question(const httplib::Request& req, httplib::Response& res
     DB_WRITE_LOCK;
     string idStr = get_path_param(req, "id");
     if (idStr.empty()) { error_response(res, "id required", 400); return; }
-    int id = std::stoi(idStr);
+    int id = 0;
+    try { id = std::stoi(idStr); }
+    catch (...) { error_response(res, "Invalid question id", 400); return; }
     string mamh = req.get_param_value("mamh");
 
     NodeMH* foundNode = nullptr;

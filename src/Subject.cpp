@@ -75,7 +75,7 @@ NodeMH* findMinNode(NodeMH* node) {
     return node;
 }
 
-bool Subject::_remove(NodeMH*& node, const char MAMH[15]) {
+bool Subject::_remove(NodeMH*& node, const char MAMH[16]) {
     if (node == nullptr)
         return false;
     // Tim Mon Hoc Can Xoa 
@@ -112,19 +112,27 @@ bool Subject::_remove(NodeMH*& node, const char MAMH[15]) {
 
     // transplant 
     NodeMH* succ = findMinNode(node->right);
+    char succMAMH[16] = {0};
+    strncpy(succMAMH, succ->data.MAMH, 15);
 
-    MonHoc tempData = node->data;
-    node->data = succ->data;
-    succ->data = tempData;
+    // Copy succ scalar fields to node
+    strncpy(node->data.MAMH, succ->data.MAMH, 15);
+    node->data.MAMH[15] = '\0';
+    node->data.TENMH = succ->data.TENMH;
+    node->data.used = succ->data.used;
+    // Swap question list contents safely
+    Question tmpQ = node->data.dsCauHoi;
+    node->data.dsCauHoi = succ->data.dsCauHoi;
+    succ->data.dsCauHoi = tmpQ;
 
-    return _remove(node->right, MAMH);
+    return _remove(node->right, succMAMH);
 }
 
-bool Subject::remove(const char MAMH[15]) {
+bool Subject::remove(const char MAMH[16]) {
     return _remove(root, MAMH);
 }
 
-bool Subject::update(const char MAMH[15], const std::string& newTENMH) {
+bool Subject::update(const char MAMH[16], const std::string& newTENMH) {
     NodeMH* node = find(MAMH);
     if (!node) return false;
     
@@ -144,7 +152,7 @@ bool Subject::update(const char MAMH[15], const std::string& newTENMH) {
     return true;
 }
 
-NodeMH* Subject::find(const char MAMH[15]) {
+NodeMH* Subject::find(const char MAMH[16]) {
     if (root == nullptr) {
         return nullptr;
     }

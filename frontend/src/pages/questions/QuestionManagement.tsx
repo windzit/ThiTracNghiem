@@ -59,6 +59,7 @@ export default function QuestionManagement() {
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [isLoadingSubjects, setIsLoadingSubjects] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isRestoring, setIsRestoring] = useState(false)
 
   // Validation errors state
   const [formErrors, setFormErrors] = useState<{
@@ -118,10 +119,20 @@ export default function QuestionManagement() {
     if (urlSubject !== subjectFilter) {
       setSubjectFilter(urlSubject)
       setSortDir("asc") // Reset sort to ID Ascending when subject changes
+      setSelectedIds([])
     }
-    if (urlStatus !== statusFilter) setStatusFilter(urlStatus)
-    if (urlSearch !== searchTerm) setSearchTerm(urlSearch)
-    if (urlPage !== currentPage) setCurrentPage(urlPage)
+    if (urlStatus !== statusFilter) {
+      setStatusFilter(urlStatus)
+      setSelectedIds([])
+    }
+    if (urlSearch !== searchTerm) {
+      setSearchTerm(urlSearch)
+      setSelectedIds([])
+    }
+    if (urlPage !== currentPage) {
+      setCurrentPage(urlPage)
+      setSelectedIds([])
+    }
   }, [searchParams])
 
   // Form state
@@ -178,7 +189,11 @@ export default function QuestionManagement() {
   const deletedCount = subjectScopedQuestions.filter(q => q.deleted).length
   const unusedCount = subjectScopedQuestions.filter(q => !q.used && !q.deleted).length
 
-  const selectableQuestions = paginatedQuestions.filter((q) => !q.deleted)
+  // Selectable questions: when viewing "deleted", select disabled questions; otherwise select active questions
+  const selectableQuestions =
+    statusFilter === "deleted"
+      ? paginatedQuestions.filter((q) => q.deleted)
+      : paginatedQuestions.filter((q) => !q.deleted)
 
   const toggleSelectAll = () => {
     if (selectedIds.length === selectableQuestions.length && selectableQuestions.length > 0) {
@@ -290,10 +305,7 @@ export default function QuestionManagement() {
           showSuccess("Cập nhật câu hỏi thành công!", `Mã câu hỏi: #${editingQuestion.id}`)
           setShowDrawer(false)
           setEditingQuestion(null)
-          // CRUD UX: delay 2.5s → full reload
-          setTimeout(() => {
-            window.location.reload()
-          }, 2500)
+          await refreshData()
         }
       } else {
         // Create question
@@ -316,10 +328,7 @@ export default function QuestionManagement() {
         }), 400)
         showSuccess("Thêm câu hỏi mới thành công!")
         setShowDrawer(false)
-        // CRUD UX: delay 2.5s → full reload
-        setTimeout(() => {
-          window.location.reload()
-        }, 2500)
+        await refreshData()
       }
     } catch (err: any) {
       const parsed = ApiErrorHandler.handle(err)
@@ -349,7 +358,7 @@ export default function QuestionManagement() {
             showError("Không thể xóa câu hỏi", res.message)
           } else {
             showSuccess("Đã xóa câu hỏi.")
-            setTimeout(() => window.location.reload(), 2500)
+            await refreshData()
           }
         }
       })
@@ -366,7 +375,7 @@ export default function QuestionManagement() {
             showError("Không thể vô hiệu hóa câu hỏi", res.message)
           } else {
             showSuccess("Câu hỏi đã được chuyển sang trạng thái \"Vô hiệu hóa\".")
-            setTimeout(() => window.location.reload(), 2500)
+            await refreshData()
           }
         }
       })
@@ -387,11 +396,59 @@ export default function QuestionManagement() {
           showError("Không thể khôi phục câu hỏi", res.message)
         } else {
           showSuccess("Khôi phục câu hỏi thành công!", `Mã câu hỏi: #${q.id}`)
-          setTimeout(() => {
-            window.location.reload()
-          }, 1500)
+          await refreshData()
         }
       }
+    })
+  }
+
+  const handleBulkRestore = () => {
+    if (selectedIds.length === 0 || isRestoring) return
+
+    const itemsToRestore: Array<{ id: string; mamh: string }> = []
+    selectedIds.forEach((id) => {
+      const q = questions.find((item) => item.id === id)
+      if (q && q.deleted) {
+        const foundSubj = subjects.find(
+          (s) => s.name === q.subject || s.code === q.subject
+        )
+        const mamh = foundSubj ? foundSubj.code : q.mamh || q.subject || ""
+        itemsToRestore.push({ id, mamh })
+      }
+    })
+
+    if (itemsToRestore.length === 0) return
+
+    confirm({
+      title: "Xác nhận khôi phục hàng loạt",
+      message: `Bạn có chắc chắn muốn hủy vô hiệu hóa ${itemsToRestore.length} câu hỏi đã chọn?`,
+      severity: "warning",
+      confirmText: `Hủy vô hiệu hóa (${itemsToRestore.length})`,
+      cancelText: "Hủy",
+      onConfirm: async () => {
+        setIsRestoring(true)
+        try {
+          const { successCount, failCount, total } = await questionService.bulkRestoreQuestions(itemsToRestore)
+
+          if (failCount === 0) {
+            showSuccess(`Đã hủy vô hiệu hóa ${successCount} câu hỏi.`)
+          } else if (successCount > 0) {
+            showSuccess(
+              "Hoàn tất khôi phục",
+              `Đã khôi phục ${successCount}/${total} câu hỏi. ${failCount} câu không thể khôi phục.`
+            )
+          } else {
+            showError("Không thể khôi phục", "Tất cả các câu hỏi được chọn đều không thể khôi phục.")
+          }
+
+          setSelectedIds([])
+          await refreshData()
+        } catch (err: any) {
+          showError("Không thể thực hiện", err?.message || "Có lỗi xảy ra trong quá trình khôi phục")
+        } finally {
+          setIsRestoring(false)
+        }
+      },
     })
   }
 
@@ -415,9 +472,7 @@ export default function QuestionManagement() {
         } else {
           showSuccess("Thực hiện thao tác thành công", `Đã xử lý ${res.deletedCount || selectedIds.length} câu hỏi.`)
           setSelectedIds([])
-          setTimeout(() => {
-            window.location.reload()
-          }, 2500)
+          await refreshData()
         }
       }
     })
@@ -537,7 +592,7 @@ export default function QuestionManagement() {
               onClick={() => setSortDir("asc")}
               className={`px-2.5 py-1 text-xs font-semibold rounded transition-colors flex items-center gap-1 ${
                 sortDir === "asc"
-                  ? "bg-white text-[#D9272B] shadow-sm"
+                  ? "bg-[#D9272B] text-white shadow-sm"
                   : "text-gray-600 hover:text-gray-900"
               }`}
               title="Sắp xếp theo ID tăng dần"
@@ -548,7 +603,7 @@ export default function QuestionManagement() {
               onClick={() => setSortDir("desc")}
               className={`px-2.5 py-1 text-xs font-semibold rounded transition-colors flex items-center gap-1 ${
                 sortDir === "desc"
-                  ? "bg-white text-[#D9272B] shadow-sm"
+                  ? "bg-[#D9272B] text-white shadow-sm"
                   : "text-gray-600 hover:text-gray-900"
               }`}
               title="Sắp xếp theo ID giảm dần"
@@ -557,7 +612,19 @@ export default function QuestionManagement() {
             </button>
           </div>
 
-          {selectedIds.length > 0 && (
+          {statusFilter === "deleted" && selectedIds.length > 0 && (
+            <Button
+              variant="outline"
+              disabled={isRestoring}
+              className="h-10 gap-2 border-blue-300 text-blue-600 bg-blue-50 hover:bg-blue-100 font-medium"
+              onClick={handleBulkRestore}
+            >
+              <RotateCcw className="h-4 w-4" />
+              <span>{isRestoring ? "Đang khôi phục..." : `Hủy vô hiệu hóa (${selectedIds.length})`}</span>
+            </Button>
+          )}
+
+          {statusFilter !== "deleted" && selectedIds.length > 0 && (
             <Button
               className="h-10 gap-2 bg-[#D9272B] hover:bg-[#C42226] text-white font-medium"
               onClick={handleBulkDelete}
@@ -597,22 +664,24 @@ export default function QuestionManagement() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedQuestions.map((q) => (
-                  <tr key={q.id} className={`border-b border-gray-100 transition-colors ${
-                    q.deleted ? 'bg-gray-50/80 text-gray-400' : 'hover:bg-gray-50/50 text-gray-900'
-                  }`}>
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        disabled={q.deleted}
-                        className={`w-4 h-4 rounded border-gray-300 text-[#D9272B] focus:ring-[#D9272B]/20 ${
-                          q.deleted ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
-                        }`}
-                        checked={selectedIds.includes(q.id)}
-                        onChange={() => !q.deleted && toggleSelect(q.id)}
-                      />
-                    </td>
-                    <td className={`px-4 py-3 text-sm ${q.deleted ? 'text-gray-400 font-normal' : 'text-gray-900 font-medium'}`}>{q.id}</td>
+                {paginatedQuestions.map((q) => {
+                  const isRowSelectable = statusFilter === "deleted" ? q.deleted : !q.deleted
+                  return (
+                    <tr key={q.id} className={`border-b border-gray-100 transition-colors ${
+                      q.deleted ? 'bg-gray-50/80 text-gray-400' : 'hover:bg-gray-50/50 text-gray-900'
+                    }`}>
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          disabled={!isRowSelectable}
+                          className={`w-4 h-4 rounded border-gray-300 text-[#D9272B] focus:ring-[#D9272B]/20 ${
+                            !isRowSelectable ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                          }`}
+                          checked={selectedIds.includes(q.id)}
+                          onChange={() => isRowSelectable && toggleSelect(q.id)}
+                        />
+                      </td>
+                      <td className={`px-4 py-3 text-sm ${q.deleted ? 'text-gray-400 font-normal' : 'text-gray-900 font-medium'}`}>{q.id}</td>
                     <td className="px-4 py-3">
                       <div className={`text-sm ${q.deleted ? 'line-through text-gray-400 font-normal' : 'text-gray-900 font-medium'}`}>{q.content}</div>
                       {q.subText && <div className={`text-xs mt-0.5 ${q.deleted ? 'text-gray-300' : 'text-gray-500'}`}>{q.subText}</div>}
@@ -672,8 +741,9 @@ export default function QuestionManagement() {
                       </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
+                )
+              })}
+            </tbody>
             </table>
           </div>
 
