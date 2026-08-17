@@ -12,15 +12,15 @@ bool StorageDeserializer::parseClassesFile(const std::string& filePath, DArray<L
     std::string line;
     bool isHeader = true;
     while (std::getline(file, line)) {
-        std::string trimmed = StorageValidator::trim(line);
+        std::string trimmed = trim(line);
         if (trimmed.empty()) continue;
         if (isHeader) { isHeader = false; continue; }
 
         DArray<std::string> tokens = split(trimmed, '|');
         if (tokens.size() >= 2) {
             Lop lop;
-            lop.MALOP = StorageValidator::trim(tokens[0]);
-            lop.TENLOP = StorageValidator::trim(tokens[1]);
+            lop.MALOP = trim(tokens[0]);
+            lop.TENLOP = trim(tokens[1]);
             result.push_back(lop);
         }
     }
@@ -37,15 +37,15 @@ bool StorageDeserializer::parseStudentsFile(const std::string& filePath, DArray<
     std::string line;
     bool isHeader = true;
     while (std::getline(file, line)) {
-        std::string trimmed = StorageValidator::trim(line);
+        std::string trimmed = trim(line);
         if (trimmed.empty()) continue;
         if (isHeader) { isHeader = false; continue; }
 
         DArray<std::string> tokens = split(trimmed, '|');
         if (tokens.size() >= 6) {
-            std::string malop = StorageValidator::trim(tokens[0]);
+            std::string malop = trim(tokens[0]);
             SinhVien sv;
-            sv.MASV = StorageValidator::trim(tokens[1]);
+            sv.MASV = trim(tokens[1]);
             sv.HO = tokens[2];
             sv.TEN = tokens[3];
             sv.PHAI = tokens[4];
@@ -67,14 +67,14 @@ bool StorageDeserializer::parseSubjectsFile(const std::string& filePath, DArray<
     std::string line;
     bool isHeader = true;
     while (std::getline(file, line)) {
-        std::string trimmed = StorageValidator::trim(line);
+        std::string trimmed = trim(line);
         if (trimmed.empty()) continue;
         if (isHeader) { isHeader = false; continue; }
 
         DArray<std::string> tokens = split(trimmed, '|');
         if (tokens.size() >= 2) {
             MonHoc mh;
-            std::string mamh = StorageValidator::trim(tokens[0]);
+            std::string mamh = trim(tokens[0]);
             std::strcpy(mh.MAMH, mamh.c_str());
             mh.TENMH = tokens[1];
             mh.used = (tokens.size() >= 3 && (tokens[2] == "1" || tokens[2] == "true"));
@@ -94,21 +94,21 @@ bool StorageDeserializer::parseQuestionsFile(const std::string& filePath, DArray
     std::string line;
     bool isHeader = true;
     while (std::getline(file, line)) {
-        std::string trimmed = StorageValidator::trim(line);
+        std::string trimmed = trim(line);
         if (trimmed.empty()) continue;
         if (isHeader) { isHeader = false; continue; }
 
         DArray<std::string> tokens = split(trimmed, '|');
         if (tokens.size() >= 8) {
-            std::string mamh = StorageValidator::trim(tokens[0]);
+            std::string mamh = trim(tokens[0]);
             CauHoi q;
-            q.ID = std::stoi(StorageValidator::trim(tokens[1]));
+            q.ID = std::stoi(trim(tokens[1]));
             q.NOIDUNG = tokens[2];
             q.A = tokens[3];
             q.B = tokens[4];
             q.C = tokens[5];
             q.D = tokens[6];
-            std::string dapan = StorageValidator::trim(tokens[7]);
+            std::string dapan = trim(tokens[7]);
             q.DAPAN_DUNG = dapan.empty() ? '\0' : dapan[0];
             q.used = (tokens.size() >= 9 && (tokens[8] == "1" || tokens[8] == "true"));
             q.deleted = (tokens.size() >= 10 && (tokens[9] == "1" || tokens[9] == "true"));
@@ -130,15 +130,15 @@ bool StorageDeserializer::parseScoresFile(const std::string& filePath, DArray<Di
     std::string line;
     bool isHeader = true;
     while (std::getline(file, line)) {
-        std::string trimmed = StorageValidator::trim(line);
+        std::string trimmed = trim(line);
         if (trimmed.empty()) continue;
         if (isHeader) { isHeader = false; continue; }
 
         DArray<std::string> tokens = split(trimmed, '|');
         if (tokens.size() >= 3) {
-            std::string masv = StorageValidator::trim(tokens[0]);
-            std::string mamh = StorageValidator::trim(tokens[1]);
-            float diem = std::stof(StorageValidator::trim(tokens[2]));
+            std::string masv = trim(tokens[0]);
+            std::string mamh = trim(tokens[1]);
+            float diem = std::stof(trim(tokens[2]));
 
             DiemThi dt;
             std::strcpy(dt.MAMH, mamh.c_str());
@@ -160,30 +160,30 @@ bool StorageDeserializer::parseExamSessionsFile(const std::string& filePath, DAr
     std::string line;
     bool isHeader = true;
     while (std::getline(file, line)) {
-        std::string trimmed = StorageValidator::trim(line);
+        std::string trimmed = trim(line);
         if (trimmed.empty()) continue;
         if (isHeader) { isHeader = false; continue; }
 
         DArray<std::string> tokens = split(trimmed, '|');
         if (tokens.size() >= 8) {
             ExamSession s;
-            s.MASV = StorageValidator::trim(tokens[0]);
-            s.MAMH = StorageValidator::trim(tokens[1]);
-            s.thoiGianBatDau = std::stoll(StorageValidator::trim(tokens[2]));
-            s.tongThoiGianPhut = std::stoi(StorageValidator::trim(tokens[3]));
-            s.in_progress = (StorageValidator::trim(tokens[4]) == "1" || StorageValidator::trim(tokens[4]) == "true");
-            s.lastServerActivityAt = std::stoll(StorageValidator::trim(tokens[5]));
+            s.MASV = trim(tokens[0]);
+            s.MAMH = trim(tokens[1]);
+            s.thoiGianBatDau = std::stoll(trim(tokens[2]));
+            s.tongThoiGianPhut = std::stoi(trim(tokens[3]));
+            s.in_progress = (trim(tokens[4]) == "1" || trim(tokens[4]) == "true");
+            s.lastServerActivityAt = std::stoll(trim(tokens[5]));
 
             DArray<std::string> qIdStrs = split(tokens[6], ',');
             for (int i = 0; i < qIdStrs.size(); i++) {
-                if (!StorageValidator::trim(qIdStrs[i]).empty()) {
-                    s.questionIds.push_back(std::stoi(StorageValidator::trim(qIdStrs[i])));
+                if (!trim(qIdStrs[i]).empty()) {
+                    s.questionIds.push_back(std::stoi(trim(qIdStrs[i])));
                 }
             }
 
             DArray<std::string> ansStrs = split(tokens[7], ',');
             for (int i = 0; i < ansStrs.size(); i++) {
-                std::string a = StorageValidator::trim(ansStrs[i]);
+                std::string a = trim(ansStrs[i]);
                 char ansChar = a.empty() ? '-' : a[0];
                 s.answers.push_back(ansChar == '-' ? '\0' : ansChar);
             }

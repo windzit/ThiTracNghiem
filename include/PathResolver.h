@@ -25,9 +25,6 @@ public:
     // Resolves the absolute path to a specific index file inside storage/indexes directory
     static std::string getIndexPath(const std::string& indexFilename);
 
-    // One-time auto-migration of legacy root storage/*.txt files into storage/data/
-    static void migrateLegacyStorage();
-
 private:
     // Absolute path to the directory containing the executable
     static std::string s_execDir;

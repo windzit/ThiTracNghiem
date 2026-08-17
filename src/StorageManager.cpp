@@ -605,23 +605,22 @@ static bool validateAndCollectQuestions(NodeMH* node, std::ostringstream& questS
     if (!validateAndCollectQuestions(node->left, questSS, questionCount, errReason)) return false;
 
     const MonHoc& mh = node->data;
-    for (int id = 0; id <= 100000; id++) {
-        dsCHT* qNode = const_cast<MonHoc&>(mh).dsCauHoi.find(id);
-        if (qNode) {
-            const CauHoi& q = qNode->cauhoi;
-            if (!StorageValidator::validateQuestion(q, mh.MAMH, errReason)) return false;
-            char st = q.deleted ? STATUS_SOFT_DELETED : STATUS_ACTIVE;
-            questSS << std::left  << std::setfill(' ') << std::setw(15) << mh.MAMH << '|'
-                    << std::right << std::setfill('0') << std::setw(10) << q.ID << '|'
-                    << std::left  << std::setfill(' ') << std::setw(300) << q.NOIDUNG << '|'
-                    << std::setw(100) << q.A << '|'
-                    << std::setw(100) << q.B << '|'
-                    << std::setw(100) << q.C << '|'
-                    << std::setw(100) << q.D << '|'
-                    << q.DAPAN_DUNG << '|'
-                    << st << '\n';
-            questionCount++;
-        }
+    dsCHT* qNode = const_cast<MonHoc&>(mh).dsCauHoi.getRoot();
+    while (qNode) {
+        const CauHoi& q = qNode->cauhoi;
+        if (!StorageValidator::validateQuestion(q, mh.MAMH, errReason)) return false;
+        char st = q.deleted ? STATUS_SOFT_DELETED : STATUS_ACTIVE;
+        questSS << std::left  << std::setfill(' ') << std::setw(15) << mh.MAMH << '|'
+                << std::right << std::setfill('0') << std::setw(10) << q.ID << '|'
+                << std::left  << std::setfill(' ') << std::setw(300) << q.NOIDUNG << '|'
+                << std::setw(100) << q.A << '|'
+                << std::setw(100) << q.B << '|'
+                << std::setw(100) << q.C << '|'
+                << std::setw(100) << q.D << '|'
+                << q.DAPAN_DUNG << '|'
+                << st << '\n';
+        questionCount++;
+        qNode = qNode->next;
     }
 
     return validateAndCollectQuestions(node->right, questSS, questionCount, errReason);
@@ -691,8 +690,7 @@ bool StorageManager::saveScores(Class& dsl) {
                 while (curScore) {
                     const DiemThi& dt = curScore->diemthi;
                     std::string errReason;
-                    Class dummyClass; Subject dummySubject;
-                    if (!StorageValidator::validateScore(sv.MASV, dt, dummyClass, dummySubject, errReason)) {
+                    if (!StorageValidator::validateScore(sv.MASV, dt, errReason)) {
                         std::cerr << "[StorageValidation] Score validation failed: " << errReason << std::endl;
                         return false;
                     }
@@ -758,8 +756,7 @@ static bool flushExamSessionsFile() {
 
 bool StorageManager::saveExamSession(const ExamSession& session) {
     std::string errReason;
-    Class dummyClass; Subject dummySubject;
-    if (!StorageValidator::validateExamSession(session, dummyClass, dummySubject, errReason)) {
+    if (!StorageValidator::validateExamSession(session, errReason)) {
         std::cerr << "[StorageValidation] ExamSession validation failed: " << errReason << std::endl;
         return false;
     }
@@ -788,8 +785,7 @@ bool StorageManager::removeExamSession(const std::string& masv) {
 
 bool StorageManager::appendExamHistory(const ExamSession& session, float diem) {
     std::string errReason;
-    Class dummyClass; Subject dummySubject;
-    if (!StorageValidator::validateExamSession(session, dummyClass, dummySubject, errReason)) {
+    if (!StorageValidator::validateExamSession(session, errReason)) {
         std::cerr << "[StorageValidation] appendExamHistory validation failed (session): " << errReason << std::endl;
         return false;
     }
@@ -952,11 +948,10 @@ void StorageManager::rebuildUsedFlags(Subject& dsmh) {
         if (!node) return;
         clearNode(node->left);
         node->data.used = false;
-        for (int id = 0; id <= 100000; id++) {
-            dsCHT* qNode = node->data.dsCauHoi.find(id);
-            if (qNode) {
-                qNode->cauhoi.used = false;
-            }
+        dsCHT* qNode = node->data.dsCauHoi.getRoot();
+        while (qNode) {
+            qNode->cauhoi.used = false;
+            qNode = qNode->next;
         }
         clearNode(node->right);
     };
@@ -1438,8 +1433,6 @@ bool StorageManager::markClassStatusAt(int64_t offset, char status) {
 // ============================================================
 // METADATA DELETED COUNTER TRACKING & STARTUP COMPACTION CHECK
 // ============================================================
-
-constexpr int COMPACTION_DELETED_THRESHOLD = 50;
 
 void StorageManager::incrementDeletedCount(const std::string& entityType) {
     if (entityType == "student") {

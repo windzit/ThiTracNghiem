@@ -13,6 +13,7 @@
 #include "StorageManager.h"
 #include "StorageValidator.h"
 #include "StringNormalizer.h"
+#include "Utils.h"
 #include "PathResolver.h"
 
 bool runValidationTests() {
@@ -64,12 +65,12 @@ bool runValidationTests() {
     }
 
     // Test 4: Score out of range (15.0)
+    // Test 4: Score out of range rejection (> 10.0)
     total++;
     DiemThi invalidScore;
     std::strcpy(invalidScore.MAMH, "INT1339");
     invalidScore.DIEM = 15.0f; // invalid score > 10
-    Class dummyClass; Subject dummySubject;
-    if (!StorageValidator::validateScore("N22DCCN001", invalidScore, dummyClass, dummySubject, errReason)) {
+    if (!StorageValidator::validateScore("N22DCCN001", invalidScore, errReason)) {
         std::cout << "[PASS] Test 4: Rejected Score out of range (>10.0). Reason: " << errReason << "\n";
         passed++;
     } else {
@@ -83,7 +84,7 @@ bool runValidationTests() {
     invalidSession.MAMH = "INT1339";
     invalidSession.tongThoiGianPhut = 15;
     invalidSession.questionIds.push_back(-5); // invalid ID
-    if (!StorageValidator::validateExamSession(invalidSession, dummyClass, dummySubject, errReason)) {
+    if (!StorageValidator::validateExamSession(invalidSession, errReason)) {
         std::cout << "[PASS] Test 5: Rejected ExamSession with negative question ID. Reason: " << errReason << "\n";
         passed++;
     } else {
@@ -108,7 +109,7 @@ bool runValidationTests() {
     DiemThi nanScore;
     std::strcpy(nanScore.MAMH, "INT1339");
     nanScore.DIEM = std::numeric_limits<float>::quiet_NaN();
-    if (!StorageValidator::validateScore("N22DCCN001", nanScore, dummyClass, dummySubject, errReason)) {
+    if (!StorageValidator::validateScore("N22DCCN001", nanScore, errReason)) {
         std::cout << "[PASS] Test 7: Rejected NaN Float Score. Reason: " << errReason << "\n";
         passed++;
     } else {
@@ -198,7 +199,7 @@ bool runValidationTests() {
     // Test 14: Identifier trim only (MALOP)
     total++;
     std::string malopPad = "  D22CQCN01  ";
-    std::string normMalop = StringNormalizer::trimIdentifier(malopPad);
+    std::string normMalop = trim(malopPad);
     if (normMalop == "D22CQCN01") {
         std::cout << "[PASS] Test 14: Identifier trimmed correctly ('D22CQCN01').\n";
         passed++;

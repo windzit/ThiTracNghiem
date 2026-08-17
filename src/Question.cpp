@@ -43,7 +43,7 @@ void Question::clear() {
 
 bool Question::insert(CauHoi &cauhoi, bool autoId) {
   if (autoId) {
-    cauhoi.ID = generateQuestionID();
+    cauhoi.ID = StorageManager::getInstance().getNextQuestionID();
   }
   // 1. Danh sách rỗng: Nút mới vừa là root vừa là tail
   if (!root) {

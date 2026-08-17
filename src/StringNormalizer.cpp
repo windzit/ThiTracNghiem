@@ -1,12 +1,6 @@
 #include "../include/StringNormalizer.h"
+#include "../include/Utils.h"
 #include <cctype>
-
-std::string StringNormalizer::trimIdentifier(const std::string& input) {
-    size_t first = input.find_first_not_of(" \t\n\r");
-    if (first == std::string::npos) return "";
-    size_t last = input.find_last_not_of(" \t\n\r");
-    return input.substr(first, (last - first + 1));
-}
 
 std::string StringNormalizer::normalizeIdentifier(const std::string& input) {
     std::string result;
@@ -112,13 +106,13 @@ void StringNormalizer::normalizeQuestion(CauHoi& q) {
 }
 
 void StringNormalizer::normalizeScore(DiemThi& dt, std::string& masv) {
-    masv = trimIdentifier(masv);
-    std::string mamh = trimIdentifier(dt.MAMH);
+    masv = trim(masv);
+    std::string mamh = trim(dt.MAMH);
     std::strncpy(dt.MAMH, mamh.c_str(), sizeof(dt.MAMH) - 1);
     dt.MAMH[sizeof(dt.MAMH) - 1] = '\0';
 }
 
 void StringNormalizer::normalizeExamSession(ExamSession& session) {
-    session.MASV = trimIdentifier(session.MASV);
-    session.MAMH = trimIdentifier(session.MAMH);
+    session.MASV = trim(session.MASV);
+    session.MAMH = trim(session.MAMH);
 }

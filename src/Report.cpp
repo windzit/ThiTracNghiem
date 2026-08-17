@@ -92,17 +92,16 @@ void PrintExamDetailReport(Class& dsl, Subject& dsmh) {
 
     cout << "\n--- DANH SACH CAU HOI (THAM KHAO) ---\n";
     int stt = 1;
-    for (int id = 0; id < 10000; id++) {
-        dsCHT* q = monhoc->data.dsCauHoi.find(id);
-        if (q) {
-            cout << stt++ << ". [ID=" << q->cauhoi.ID << "] "
-                 << q->cauhoi.NOIDUNG << "\n";
-            cout << "   A. " << q->cauhoi.A << "\n";
-            cout << "   B. " << q->cauhoi.B << "\n";
-            cout << "   C. " << q->cauhoi.C << "\n";
-            cout << "   D. " << q->cauhoi.D << "\n";
-            cout << "   Dap an dung: " << q->cauhoi.DAPAN_DUNG << "\n\n";
-        }
+    dsCHT* q = monhoc->data.dsCauHoi.getRoot();
+    while (q) {
+        cout << stt++ << ". [ID=" << q->cauhoi.ID << "] "
+             << q->cauhoi.NOIDUNG << "\n";
+        cout << "   A. " << q->cauhoi.A << "\n";
+        cout << "   B. " << q->cauhoi.B << "\n";
+        cout << "   C. " << q->cauhoi.C << "\n";
+        cout << "   D. " << q->cauhoi.D << "\n";
+        cout << "   Dap an dung: " << q->cauhoi.DAPAN_DUNG << "\n\n";
+        q = q->next;
     }
     cout << "--- HET ---\n";
 }

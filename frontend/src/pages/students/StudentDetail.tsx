@@ -22,7 +22,7 @@ import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"
 import { Drawer, EmptyState } from "@/shared/components"
-import { validateStudentName, splitStudentName, normalizeText } from "@/shared/lib/formValidation"
+import { validateStudentName, splitStudentName, formatStudentNameFields, normalizeText } from "@/shared/lib/formValidation"
 import { useToast } from "@/app/providers/ToastContext"
 import { ApiErrorHandler } from "@/shared/api/ApiErrorHandler"
 
@@ -42,7 +42,7 @@ export default function StudentDetail() {
   const [formTen, setFormTen] = useState("")
   const [formPassword, setFormPassword] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [errors, setErrors] = useState<{ name?: string }>({})
+  const [errors, setErrors] = useState<{ ho?: string; ten?: string; name?: string }>({})
 
   const fetchStudentData = async () => {
     if (!id) return
@@ -134,16 +134,15 @@ Thao tác này không thể hoàn tác.`,
     })
   }
 
-  const handleAutoSplitName = (hoVal: string, tenVal: string) => {
-    const { ho, ten } = splitStudentName(hoVal, tenVal)
-    setFormHo(ho)
-    setFormTen(ten)
-    return { ho, ten }
-  }
-
   const handleOpenEdit = () => {
     if (!student) return
-    const { ho, ten } = splitStudentName(student.ho || "", student.ten || student.name)
+    let ho = student.ho || ""
+    let ten = student.ten || ""
+    if (!ho && !ten && student.name) {
+      const split = splitStudentName("", student.name)
+      ho = split.ho
+      ten = split.ten
+    }
     setFormHo(ho)
     setFormTen(ten)
     setFormPassword("")
@@ -153,22 +152,27 @@ Thao tác này không thể hoàn tác.`,
 
   const handleSaveStudent = async () => {
     if (!student || !id) return
-    const { ho: splitHo, ten: splitTen } = handleAutoSplitName(formHo, formTen)
-    const full = `${splitHo} ${splitTen}`.trim()
-    const nameErr = validateStudentName(full)
-    if (nameErr) {
-      setErrors({ name: nameErr })
+    const rawHo = normalizeText(formHo)
+    const rawTen = normalizeText(formTen)
+    const { ho: formattedHo, ten: formattedTen } = formatStudentNameFields(rawHo, rawTen)
+
+    const hoErr = validateStudentName(formattedHo)
+    const tenErr = validateStudentName(formattedTen)
+    if (hoErr || tenErr) {
+      setErrors({
+        ho: hoErr || undefined,
+        ten: tenErr || undefined,
+        name: hoErr || tenErr || undefined,
+      })
       return
     }
 
     setIsSubmitting(true)
     try {
-      const normalizedHo = normalizeText(splitHo)
-      const normalizedTen = normalizeText(splitTen)
       await studentService.updateStudent(id, {
-        ho: normalizedHo,
-        ten: normalizedTen,
-        name: `${normalizedHo} ${normalizedTen}`.trim(),
+        ho: formattedHo,
+        ten: formattedTen,
+        name: `${formattedHo} ${formattedTen}`.trim(),
         password: formPassword ? formPassword : undefined,
       })
       setShowEditDrawer(false)
@@ -488,9 +492,13 @@ Thao tác này không thể hoàn tác.`,
               placeholder="Nhập họ và tên đệm"
               value={formHo}
               onChange={(e) => setFormHo(e.target.value)}
-              onBlur={(e) => handleAutoSplitName(e.target.value, formTen)}
+              onBlur={() => {
+                const err = validateStudentName(formHo)
+                setErrors((prev) => ({ ...prev, ho: err || undefined }))
+              }}
               className="h-10"
             />
+            {errors.ho && <p className="text-xs text-red-500">{errors.ho}</p>}
           </div>
 
           {/* Tên */}
@@ -502,10 +510,14 @@ Thao tác này không thể hoàn tác.`,
               placeholder="Nhập tên"
               value={formTen}
               onChange={(e) => setFormTen(e.target.value)}
-              onBlur={(e) => handleAutoSplitName(formHo, e.target.value)}
+              onBlur={() => {
+                const err = validateStudentName(formTen)
+                setErrors((prev) => ({ ...prev, ten: err || undefined }))
+              }}
               className="h-10"
             />
-            {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
+            {errors.ten && <p className="text-xs text-red-500">{errors.ten}</p>}
+            {errors.name && !errors.ho && !errors.ten && <p className="text-xs text-red-500">{errors.name}</p>}
           </div>
 
 

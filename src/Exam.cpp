@@ -68,11 +68,10 @@ static void clearInput() {
 // Helper: random select questions from a subject
 static DArray<dsCHT*> randomSelectQuestions(Question& dsCauHoi, int soCau) {
     DArray<dsCHT*> allQuestions;
-    for (int id = 0; id < 10000; id++) {
-        dsCHT* q = dsCauHoi.find(id);
-        if (q) {
-            allQuestions.push_back(q);
-        }
+    dsCHT* q = dsCauHoi.getRoot();
+    while (q) {
+        allQuestions.push_back(q);
+        q = q->next;
     }
     
     DArray<dsCHT*> selected;
@@ -117,12 +116,7 @@ void ThiTracNghiem(Subject& dsmh, SinhVien* sv) {
         return;
     }
     
-    int totalQuestions = 0;
-    for (int id = 0; id < 10000; id++) {
-        if (monhoc->data.dsCauHoi.find(id)) {
-            totalQuestions++;
-        }
-    }
+    int totalQuestions = monhoc->data.dsCauHoi.size();
     
     if (totalQuestions == 0) {
         std::cout << "Mon hoc nay chua co cau hoi nao.\n";

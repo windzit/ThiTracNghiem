@@ -286,3 +286,6 @@ export function splitStudentName(hoInput: string, tenInput: string): { ho: strin
   return { ho, ten }
 }
 
+export const formatStudentNameFields = splitStudentName
+
+

@@ -1,5 +1,6 @@
 #include "../include/StorageValidator.h"
 #include "../include/StringNormalizer.h"
+#include "../include/Utils.h"
 #include <iostream>
 #include <fstream>
 #include <cctype>
@@ -36,12 +37,6 @@ bool StorageValidator::containsForbiddenChars(const std::string& str, std::strin
     return false;
 }
 
-std::string StorageValidator::trim(const std::string& str) {
-    size_t first = str.find_first_not_of(" \t\n\r");
-    if (first == std::string::npos) return "";
-    size_t last = str.find_last_not_of(" \t\n\r");
-    return str.substr(first, (last - first + 1));
-}
 
 bool StorageValidator::isEmptyOrWhitespace(const std::string& str) {
     return trim(str).empty();
@@ -273,7 +268,7 @@ bool StorageValidator::hasDuplicateOptionsAfterNormalization(const CauHoi& q, st
     return false;
 }
 
-bool StorageValidator::validateScore(const std::string& masv, const DiemThi& score, const Class& dsl, const Subject& dsmh, std::string& errReason) {
+bool StorageValidator::validateScore(const std::string& masv, const DiemThi& score, std::string& errReason) {
     std::string s_masv = trim(masv);
     std::string s_mamh = trim(score.MAMH);
     std::string charReason;
@@ -302,7 +297,7 @@ bool StorageValidator::validateScore(const std::string& masv, const DiemThi& sco
     return true;
 }
 
-bool StorageValidator::validateExamSession(const ExamSession& session, const Class& dsl, const Subject& dsmh, std::string& errReason) {
+bool StorageValidator::validateExamSession(const ExamSession& session, std::string& errReason) {
     std::string masv = trim(session.MASV);
     std::string mamh = trim(session.MAMH);
     std::string charReason;

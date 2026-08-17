@@ -36,13 +36,12 @@ void handle_get_subject_by_id(const httplib::Request& req, httplib::Response& re
     if (!node) { error_response(res, "Subject not found", 404); return; }
 
     json questions = json::array();
-    for (int id = 0; id < 10000; id++) {
-        dsCHT* q = node->data.dsCauHoi.find(id);
-        if (q) {
-            questions.push_back({{"id",q->cauhoi.ID},{"noidung",q->cauhoi.NOIDUNG},
-                {"A",q->cauhoi.A},{"B",q->cauhoi.B},{"C",q->cauhoi.C},{"D",q->cauhoi.D},
-                {"dapan",string(1,q->cauhoi.DAPAN_DUNG)},{"used",q->cauhoi.used},{"deleted",q->cauhoi.deleted}});
-        }
+    dsCHT* q = node->data.dsCauHoi.getRoot();
+    while (q) {
+        questions.push_back({{"id",q->cauhoi.ID},{"noidung",q->cauhoi.NOIDUNG},
+            {"A",q->cauhoi.A},{"B",q->cauhoi.B},{"C",q->cauhoi.C},{"D",q->cauhoi.D},
+            {"dapan",string(1,q->cauhoi.DAPAN_DUNG)},{"used",q->cauhoi.used},{"deleted",q->cauhoi.deleted}});
+        q = q->next;
     }
     json_response(res, {{"mamh",node->data.MAMH},{"tenmh",node->data.TENMH},
         {"used",node->data.used},{"questions",questions}});

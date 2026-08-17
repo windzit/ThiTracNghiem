@@ -1,5 +1,6 @@
 #include "../include/StorageIntegrityChecker.h"
 #include "../include/StorageValidator.h"
+#include "../include/Utils.h"
 #include <iostream>
 
 static void logIntegrityWarning(const std::string& relation, const std::string& key, const std::string& missingTarget) {
@@ -20,7 +21,7 @@ bool StorageIntegrityChecker::auditStorageIntegrity(Class& dsl, Subject& dsmh, c
         for (int i = 0; i < rootLop->n; i++) {
             Lop* lop = rootLop->dslop[i];
             if (!lop) continue;
-            std::string classCode = StorageValidator::trim(lop->MALOP);
+            std::string classCode = trim(lop->MALOP);
             if (!dsl.find(classCode)) {
                 warningsCount++;
                 logIntegrityWarning("Student -> Class", "MALOP: " + classCode, "Class: " + classCode);
@@ -39,7 +40,7 @@ bool StorageIntegrityChecker::auditStorageIntegrity(Class& dsl, Subject& dsmh, c
                 dsDiemThi* curScore = const_cast<SinhVien&>(sv).dsdiemthi.getRoot();
                 while (curScore) {
                     const DiemThi& dt = curScore->diemthi;
-                    std::string mamh = StorageValidator::trim(dt.MAMH);
+                    std::string mamh = trim(dt.MAMH);
                     if (!dsmh.find(mamh.c_str())) {
                         warningsCount++;
                         logIntegrityWarning("Score -> Subject", "MASV: " + sv.MASV + ", MAMH: " + mamh, "Subject: " + mamh);
@@ -56,8 +57,8 @@ bool StorageIntegrityChecker::auditStorageIntegrity(Class& dsl, Subject& dsmh, c
         const auto& sess = sessions[i];
         if (!sess.in_progress) continue;
 
-        std::string masv = StorageValidator::trim(sess.MASV);
-        std::string mamh = StorageValidator::trim(sess.MAMH);
+        std::string masv = trim(sess.MASV);
+        std::string mamh = trim(sess.MAMH);
 
         bool studentFound = false;
         if (rootLop) {

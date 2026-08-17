@@ -33,7 +33,7 @@ import {
   normalizeIdentifier,
   normalizeText,
   normalizePassword,
-  splitStudentName,
+  formatStudentNameFields,
   VALIDATION_CONSTANTS,
 } from "@/shared/lib/formValidation"
 
@@ -219,15 +219,6 @@ export default function ClassDetail() {
     setStudentErrors((prev) => ({ ...prev, ten: err || undefined }))
     return err
   }
-
-  const handleAutoSplitName = (hoVal: string, tenVal: string) => {
-    const { ho, ten } = splitStudentName(hoVal, tenVal)
-    setStudentForm((prev) => ({ ...prev, ho, ten }))
-    if (ho) validateStudentFormHo(ho)
-    if (ten) validateStudentFormTen(ten)
-    return { ho, ten }
-  }
-
   const validateStudentFormGender = (val: string) => {
     const err = validateGender(val)
     setStudentErrors((prev) => ({ ...prev, gender: err || undefined }))
@@ -243,12 +234,13 @@ export default function ClassDetail() {
   const handleAddStudent = async () => {
     if (!classId || !classInfo) return
 
-    // Auto-split name (Tên = 1 từ cuối, Họ = các từ còn lại)
-    const { ho: splitHo, ten: splitTen } = handleAutoSplitName(studentForm.ho, studentForm.ten)
+    const rawHo = normalizeText(studentForm.ho)
+    const rawTen = normalizeText(studentForm.ten)
+    const { ho: formattedHo, ten: formattedTen } = formatStudentNameFields(rawHo, rawTen)
 
     const idErr = validateStudentFormId(studentForm.id)
-    const hoErr = validateStudentFormHo(splitHo)
-    const tenErr = validateStudentFormTen(splitTen)
+    const hoErr = validateStudentFormHo(formattedHo)
+    const tenErr = validateStudentFormTen(formattedTen)
     const genderErr = validateStudentFormGender(studentForm.gender)
     const pwdErr = validateStudentFormPassword(studentForm.password)
 
@@ -257,15 +249,13 @@ export default function ClassDetail() {
     setIsSubmittingStudent(true)
     try {
       const normalizedId = normalizeIdentifier(studentForm.id)
-      const normalizedHo = normalizeText(splitHo)
-      const normalizedTen = normalizeText(splitTen)
-      const fullName = `${normalizedHo} ${normalizedTen}`.trim()
+      const fullName = `${formattedHo} ${formattedTen}`.trim()
       const normalizedPassword = normalizePassword(studentForm.password)
 
       await minDelay(studentService.createStudent(classId, {
         id: normalizedId,
-        ho: normalizedHo,
-        ten: normalizedTen,
+        ho: formattedHo,
+        ten: formattedTen,
         name: fullName,
         gender: studentForm.gender,
         password: normalizedPassword,
@@ -620,9 +610,7 @@ export default function ClassDetail() {
                     setStudentForm({ ...studentForm, ho: val })
                     validateStudentFormHo(val)
                   }}
-                  onBlur={(e) => {
-                    handleAutoSplitName(e.target.value, studentForm.ten)
-                  }}
+                  onBlur={() => validateStudentFormHo(studentForm.ho)}
                   className="h-10"
                 />
                 {studentErrors.ho && <p className="text-xs text-red-500">{studentErrors.ho}</p>}
@@ -641,9 +629,7 @@ export default function ClassDetail() {
                     setStudentForm({ ...studentForm, ten: val })
                     validateStudentFormTen(val)
                   }}
-                  onBlur={(e) => {
-                    handleAutoSplitName(studentForm.ho, e.target.value)
-                  }}
+                  onBlur={() => validateStudentFormTen(studentForm.ten)}
                   className="h-10"
                 />
                 {studentErrors.ten && <p className="text-xs text-red-500">{studentErrors.ten}</p>}

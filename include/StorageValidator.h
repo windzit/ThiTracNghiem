@@ -11,16 +11,16 @@ public:
     static bool containsForbiddenChars(const std::string& str, std::string& foundCharReason);
     static bool containsControlChars(const std::string& str);
     static bool isEmptyOrWhitespace(const std::string& str);
-    static std::string trim(const std::string& str);
     static bool isFiniteFloat(float val);
+
 
     // Entity validation functions
     static bool validateClass(const Lop& lop, std::string& errReason);
     static bool validateStudent(const SinhVien& sv, const std::string& malop, std::string& errReason);
     static bool validateSubject(const MonHoc& mh, std::string& errReason);
     static bool validateQuestion(const CauHoi& q, const std::string& mamh, std::string& errReason);
-    static bool validateScore(const std::string& masv, const DiemThi& score, const Class& dsl, const Subject& dsmh, std::string& errReason);
-    static bool validateExamSession(const ExamSession& session, const Class& dsl, const Subject& dsmh, std::string& errReason);
+    static bool validateScore(const std::string& masv, const DiemThi& score, std::string& errReason);
+    static bool validateExamSession(const ExamSession& session, std::string& errReason);
 
     // Duplicate answer validation (after normalization + lowercase comparison)
     static bool hasDuplicateOptionsAfterNormalization(const CauHoi& q, std::string& errReason);

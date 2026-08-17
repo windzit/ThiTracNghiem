@@ -199,3 +199,5 @@ D22CQMR05-N    |N22DCCN197|Dang Van                                          |Gi
 D22CQMR05-N    |N22DCCN198|Bui Thi                                           |Hoa            |Nu  |123                             |0
 D22CQMR05-N    |N22DCCN199|Do Van                                            |Khanh          |Nam |123                             |0
 D22CQMR05-N    |N22DCCN200|Ngo Thi                                           |Lan            |Nu  |123                             |0
+D22CQCN01-N    |N22DCCN0099|Đỗ                                             |Minh Triết   |Nam |123                             10
+D22CQCN01-N    |N24DECE046|Do Minh                                           |Triet          |Nam |123                             |0

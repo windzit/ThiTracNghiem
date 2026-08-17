@@ -16,9 +16,6 @@ public:
     // Generic identifier normalization (Strips spaces & converts to UPPERCASE)
     static std::string normalizeIdentifier(const std::string& input);
 
-    // Generic identifier normalization (Trims leading/trailing whitespace only)
-    static std::string trimIdentifier(const std::string& input);
-
     // Entity normalization helpers
     static void normalizeClass(Lop& lop);
     static void normalizeStudent(SinhVien& sv);

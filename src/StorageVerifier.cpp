@@ -1,6 +1,7 @@
 #include "../include/StorageVerifier.h"
 #include "../include/StorageDeserializer.h"
 #include "../include/StorageValidator.h"
+#include "../include/Utils.h"
 #include <iostream>
 #include <cmath>
 
@@ -32,12 +33,12 @@ bool StorageVerifier::verifyClasses(Class& dsl, const std::string& filePath, std
     for (int i = 0; i < ramList.size(); i++) {
         const Lop& ram = ramList[i];
         const Lop& disk = readBack[i];
-        if (StorageValidator::trim(ram.MALOP) != StorageValidator::trim(disk.MALOP)) {
+        if (trim(ram.MALOP) != trim(disk.MALOP)) {
             errReason = "MALOP mismatch at index " + std::to_string(i);
             StorageValidator::logVerificationError("Class", ram.MALOP, "MALOP", ram.MALOP, disk.MALOP, errReason);
             return false;
         }
-        if (StorageValidator::trim(ram.TENLOP) != StorageValidator::trim(disk.TENLOP)) {
+        if (trim(ram.TENLOP) != trim(disk.TENLOP)) {
             errReason = "TENLOP mismatch for MALOP: " + ram.MALOP;
             StorageValidator::logVerificationError("Class", ram.MALOP, "TENLOP", ram.TENLOP, disk.TENLOP, errReason);
             return false;
@@ -84,7 +85,7 @@ bool StorageVerifier::verifyStudents(Class& dsl, const std::string& filePath, st
         const SinhVien& disk = readBack[i];
         std::string pk = ram.MASV;
 
-        if (StorageValidator::trim(ram.MASV) != StorageValidator::trim(disk.MASV)) {
+        if (trim(ram.MASV) != trim(disk.MASV)) {
             errReason = "MASV mismatch at index " + std::to_string(i);
             StorageValidator::logVerificationError("Student", pk, "MASV", ram.MASV, disk.MASV, errReason);
             return false;
@@ -143,12 +144,12 @@ bool StorageVerifier::verifySubjects(Subject& dsmh, const std::string& filePath,
         const MonHoc& disk = readBack[i];
         std::string pk = ram.MAMH;
 
-        if (StorageValidator::trim(ram.MAMH) != StorageValidator::trim(disk.MAMH)) {
+        if (trim(ram.MAMH) != trim(disk.MAMH)) {
             errReason = "MAMH mismatch at index " + std::to_string(i);
             StorageValidator::logVerificationError("Subject", pk, "MAMH", ram.MAMH, disk.MAMH, errReason);
             return false;
         }
-        if (StorageValidator::trim(ram.TENMH) != StorageValidator::trim(disk.TENMH)) {
+        if (trim(ram.TENMH) != trim(disk.TENMH)) {
             errReason = "TENMH mismatch for MAMH: " + pk;
             StorageValidator::logVerificationError("Subject", pk, "TENMH", ram.TENMH, disk.TENMH, errReason);
             return false;
@@ -163,12 +164,11 @@ static void collectQuestionsFromRAM(NodeMH* node, DArray<CauHoi>& ramList, DArra
     collectQuestionsFromRAM(node->left, ramList, subjectCodes);
 
     const MonHoc& mh = node->data;
-    for (int id = 0; id <= 100000; id++) {
-        dsCHT* qNode = const_cast<MonHoc&>(mh).dsCauHoi.find(id);
-        if (qNode) {
-            ramList.push_back(qNode->cauhoi);
-            subjectCodes.push_back(mh.MAMH);
-        }
+    dsCHT* qNode = const_cast<MonHoc&>(mh).dsCauHoi.getRoot();
+    while (qNode) {
+        ramList.push_back(qNode->cauhoi);
+        subjectCodes.push_back(mh.MAMH);
+        qNode = qNode->next;
     }
 
     collectQuestionsFromRAM(node->right, ramList, subjectCodes);
@@ -280,7 +280,7 @@ bool StorageVerifier::verifyScores(Class& dsl, const std::string& filePath, std:
             StorageValidator::logVerificationError("Score", pk, "MASV", ramMasvList[i], diskMasvList[i], errReason);
             return false;
         }
-        if (StorageValidator::trim(ram.MAMH) != StorageValidator::trim(disk.MAMH)) {
+        if (trim(ram.MAMH) != trim(disk.MAMH)) {
             errReason = "Score MAMH mismatch for MASV: " + ramMasvList[i];
             StorageValidator::logVerificationError("Score", pk, "MAMH", ram.MAMH, disk.MAMH, errReason);
             return false;
@@ -321,12 +321,12 @@ bool StorageVerifier::verifyExamSessions(const DArray<ExamSession>& ramSessions,
         const ExamSession& disk = readBack[i];
         std::string pk = ram.MASV;
 
-        if (StorageValidator::trim(ram.MASV) != StorageValidator::trim(disk.MASV)) {
+        if (trim(ram.MASV) != trim(disk.MASV)) {
             errReason = "ExamSession MASV mismatch at index " + std::to_string(i);
             StorageValidator::logVerificationError("ExamSession", pk, "MASV", ram.MASV, disk.MASV, errReason);
             return false;
         }
-        if (StorageValidator::trim(ram.MAMH) != StorageValidator::trim(disk.MAMH)) {
+        if (trim(ram.MAMH) != trim(disk.MAMH)) {
             errReason = "ExamSession MAMH mismatch for MASV: " + pk;
             StorageValidator::logVerificationError("ExamSession", pk, "MAMH", ram.MAMH, disk.MAMH, errReason);
             return false;
