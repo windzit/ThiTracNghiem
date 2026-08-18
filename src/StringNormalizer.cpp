@@ -40,25 +40,21 @@ std::string StringNormalizer::toTitleCase(const std::string& input) {
 std::string StringNormalizer::normalizeHumanText(const std::string& input) {
     if (input.empty()) return "";
 
-    // 1. Preserve newlines untouched so StorageValidator will reject them
+    // 1. Giữ nguyên dấu xuống dòng để StorageValidator chặn
     bool hasNewline = (input.find('\r') != std::string::npos || input.find('\n') != std::string::npos);
-    if (hasNewline) {
-        return input;
-    }
+    if (hasNewline) return input;
 
-    // 2. Convert tabs to spaces
+    // 2. Chuyển Tab thành dấu cách
     std::string s = input;
     for (char& c : s) {
         if (c == '\t') c = ' ';
     }
 
-    // 3. Trim leading & trailing whitespace
-    size_t first = s.find_first_not_of(" \t\n\r");
-    if (first == std::string::npos) return "";
-    size_t last = s.find_last_not_of(" \t\n\r");
-    s = s.substr(first, (last - first + 1));
+    // 3. Gọi hàm trim gọt sạch 2 đầu
+    s = trim(s);
+    if (s.empty()) return "";
 
-    // 4. Collapse multiple consecutive spaces into a single space
+    // 4. Thu gọn nhiều dấu cách ở giữa thành 1 dấu cách
     std::string result;
     result.reserve(s.length());
     bool lastWasSpace = false;
@@ -68,7 +64,8 @@ std::string StringNormalizer::normalizeHumanText(const std::string& input) {
                 result.push_back(' ');
                 lastWasSpace = true;
             }
-        } else {
+        }
+        else {
             result.push_back(c);
             lastWasSpace = false;
         }
@@ -76,6 +73,7 @@ std::string StringNormalizer::normalizeHumanText(const std::string& input) {
 
     return result;
 }
+
 
 void StringNormalizer::normalizeClass(Lop& lop) {
     lop.MALOP = normalizeIdentifier(lop.MALOP);

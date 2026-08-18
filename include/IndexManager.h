@@ -39,6 +39,7 @@ public:
 
     // Lookup functions
     bool getQuestionOffset(int id, int64_t& outOffset) const;
+    bool getQuestionSubject(int id, std::string& outMamh) const;
     bool getStudentOffset(const std::string& masv, int64_t& outOffset) const;
     bool getSubjectOffset(const std::string& mamh, int64_t& outOffset) const;
     bool getClassOffset(const std::string& malop, int64_t& outOffset) const;
@@ -47,6 +48,8 @@ public:
     // Mutation update functions
     void updateQuestionOffset(int id, int64_t offset);
     void removeQuestionOffset(int id);
+    void updateQuestionSubject(int id, const std::string& mamh);
+    void removeQuestionSubject(int id);
 
     void updateStudentOffset(const std::string& masv, int64_t offset);
     void removeStudentOffset(const std::string& masv);
@@ -58,6 +61,11 @@ public:
     void removeClassOffset(const std::string& malop);
 
     void appendHistoryOffset(const std::string& masv, int64_t offset);
+
+    // Batch flush support
+    void setAutoFlush(bool enable) { m_autoFlush = enable; }
+    bool isAutoFlush() const { return m_autoFlush; }
+    void flushDirtyIndexes();
 
     // Index metrics
     size_t getQuestionIndexCount() const { return m_questionIndex.size(); }
@@ -73,10 +81,19 @@ private:
     IndexManager(const IndexManager&) = delete;
     IndexManager& operator=(const IndexManager&) = delete;
 
+    bool m_autoFlush = true;
+    bool m_questionDirty = false;
+    bool m_studentDirty = false;
+    bool m_subjectDirty = false;
+    bool m_classDirty = false;
+    bool m_historyDirty = false;
+
     HashTable<int, int64_t> m_questionIndex;                      // Question ID -> Byte Offset
+    HashTable<int, std::string> m_questionSubjectIndex;           // Question ID -> MAMH
     HashTable<std::string, int64_t> m_studentIndex;               // Student MASV -> Byte Offset
     HashTable<std::string, int64_t> m_subjectIndex;               // Subject MAMH -> Byte Offset
     HashTable<std::string, int64_t> m_classIndex;                 // Class MALOP -> Byte Offset
     HashTable<std::string, DArray<int64_t>> m_historyIndex;        // Student MASV -> DArray of Offsets
 };
+
 

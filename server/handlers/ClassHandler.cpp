@@ -9,7 +9,6 @@
 using namespace std;
 
 void handle_get_classes(const httplib::Request&, httplib::Response& res) {
-    set_cors_headers(res);
     DB_READ_LOCK;
     dsLop* root = dsl.getRoot();
     json arr = json::array();
@@ -25,17 +24,15 @@ void handle_get_classes(const httplib::Request&, httplib::Response& res) {
 }
 
 void handle_get_class_by_id(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     DB_READ_LOCK;
     string malop = get_path_param(req, "id");
-    Lop* lop = dsl.find(malop);
+    Lop* lop = findClassGlobal(malop);
     if (!lop) { error_response(res, "Class not found", 404); return; }
     json_response(res, {{"malop",lop->MALOP},{"tenlop",lop->TENLOP},
         {"siso",lop->dssinhvien.size()}});
 }
 
 void handle_create_class(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     DB_WRITE_LOCK;
     json body;
     try { body = json::parse(req.body); }
@@ -49,12 +46,7 @@ void handle_create_class(const httplib::Request& req, httplib::Response& res) {
         return;
     }
 
-    if (malop.length() > 15) {
-        error_response(res, "malop must be at most 15 characters", 400);
-        return;
-    }
-
-    if (dsl.find(malop)) {
+    if (findClassGlobal(malop)) {
         error_response(res, "Class already exists", 409);
         return;
     }
@@ -74,14 +66,15 @@ void handle_create_class(const httplib::Request& req, httplib::Response& res) {
     if (dsl.insert(lop)) {
         int64_t outOffset = -1;
         StorageManager::getInstance().appendClass(*lop, outOffset);
+        registerClassGlobal(lop->MALOP, lop);
         json_response(res, {{"malop", lop->MALOP}, {"tenlop", lop->TENLOP}, {"siso", 0}}, 201);
     } else {
+        delete lop;
         error_response(res, "Failed to create class", 500);
     }
 }
 
 void handle_update_class(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     DB_WRITE_LOCK;
     string malop = get_path_param(req, "id");
 
@@ -96,7 +89,7 @@ void handle_update_class(const httplib::Request& req, httplib::Response& res) {
         return;
     }
 
-    Lop* lop = dsl.find(malop);
+    Lop* lop = findClassGlobal(malop);
     if (!lop) {
         error_response(res, "Class not found", 404);
         return;
@@ -118,7 +111,7 @@ void handle_update_class(const httplib::Request& req, httplib::Response& res) {
         return;
     }
 
-    Lop* updated = dsl.find(malop);
+    Lop* updated = findClassGlobal(malop);
     if (updated) {
         int64_t offset = -1;
         if (IndexManager::getInstance().getClassOffset(malop, offset)) {
@@ -130,11 +123,10 @@ void handle_update_class(const httplib::Request& req, httplib::Response& res) {
 }
 
 void handle_delete_class(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     DB_WRITE_LOCK;
     string malop = get_path_param(req, "id");
 
-    Lop* lop = dsl.find(malop);
+    Lop* lop = findClassGlobal(malop);
     if (!lop) {
         error_response(res, "Class not found", 404);
         return;
@@ -151,6 +143,8 @@ void handle_delete_class(const httplib::Request& req, httplib::Response& res) {
 
     int64_t offset = -1;
     bool hasOffset = IndexManager::getInstance().getClassOffset(malop, offset);
+
+    unregisterClassGlobal(malop);
 
     if (dsl.remove(malop)) {
         if (hasOffset) {

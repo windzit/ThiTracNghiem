@@ -21,7 +21,6 @@ static void collectSubjectsForAPI(NodeMH* node, json& arr) {
 }
 
 void handle_get_subjects(const httplib::Request&, httplib::Response& res) {
-    set_cors_headers(res);
     DB_READ_LOCK;
     json arr = json::array();
     collectSubjectsForAPI(dsmh.getRoot(), arr);
@@ -29,7 +28,6 @@ void handle_get_subjects(const httplib::Request&, httplib::Response& res) {
 }
 
 void handle_get_subject_by_id(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     DB_READ_LOCK;
     string mamh = get_path_param(req, "id");
     NodeMH* node = find_subject_smart(mamh);
@@ -48,7 +46,6 @@ void handle_get_subject_by_id(const httplib::Request& req, httplib::Response& re
 }
 
 void handle_create_subject(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     DB_WRITE_LOCK;
     json body;
     try { body = json::parse(req.body); }
@@ -57,9 +54,6 @@ void handle_create_subject(const httplib::Request& req, httplib::Response& res) 
     string tenmh = body.value("tenmh", "");
     if (mamh.empty() || tenmh.empty()) {
         error_response(res, "mamh and tenmh are required", 400); return;
-    }
-    if (mamh.length() > 15) {
-        error_response(res, "mamh must be at most 15 characters", 400); return;
     }
     if (dsmh.find(mamh.c_str())) {
         error_response(res, "Subject already exists", 409); return;
@@ -86,7 +80,6 @@ void handle_create_subject(const httplib::Request& req, httplib::Response& res) 
 }
 
 void handle_update_subject(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     DB_WRITE_LOCK;
     string mamh = get_path_param(req, "id");
     json body;
@@ -123,12 +116,20 @@ void handle_update_subject(const httplib::Request& req, httplib::Response& res) 
 }
 
 void handle_delete_subject(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     DB_WRITE_LOCK;
     string mamh = get_path_param(req, "id");
     NodeMH* node = dsmh.find(mamh.c_str());
     if (!node) {
         error_response(res, "Subject not found", 404); return;
+    }
+
+    if (node->data.used) {
+        custom_json_response(res, {
+            {"success", false},
+            {"error", "Unprocessable Entity"},
+            {"message", "Môn học đã có sinh viên thi, không thể xóa."}
+        }, 422);
+        return;
     }
 
     int64_t offset = -1;

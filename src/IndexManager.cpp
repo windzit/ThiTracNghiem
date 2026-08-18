@@ -17,10 +17,16 @@ IndexManager& IndexManager::getInstance() {
 
 void IndexManager::clear() {
     m_questionIndex.clear();
+    m_questionSubjectIndex.clear();
     m_studentIndex.clear();
     m_subjectIndex.clear();
     m_classIndex.clear();
     m_historyIndex.clear();
+    m_questionDirty = false;
+    m_studentDirty = false;
+    m_subjectDirty = false;
+    m_classDirty = false;
+    m_historyDirty = false;
 }
 
 bool IndexManager::auditAndLoadIndexes() {
@@ -122,6 +128,7 @@ bool IndexManager::rebuildAllIndexes() {
 
 bool IndexManager::rebuildQuestionIndex() {
     m_questionIndex.clear();
+    m_questionSubjectIndex.clear();
     std::string filePath = PathResolver::getFilePath("questions.txt");
     std::ifstream file(filePath, std::ios::in | std::ios::binary);
     if (!file.is_open()) return false;
@@ -146,6 +153,7 @@ bool IndexManager::rebuildQuestionIndex() {
             std::string status = trim(tokens[tokens.size() - 1]);
             if (status == "1") continue; // Skip STATUS_DELETED ('1')
 
+            std::string mamh = trim(tokens[0]);
             std::string idStr = trim(tokens[1]);
             if (idStr.empty() || !std::isdigit(static_cast<unsigned char>(idStr[0]))) {
                 idStr = trim(tokens[0]); // fallback if ID is first column
@@ -153,6 +161,9 @@ bool IndexManager::rebuildQuestionIndex() {
             try {
                 int id = std::stoi(idStr);
                 m_questionIndex.insert(id, offset);
+                if (!mamh.empty()) {
+                    m_questionSubjectIndex.insert(id, mamh);
+                }
             } catch (...) {
                 // Ignore non-numeric ID parse failures
             }
@@ -497,6 +508,15 @@ bool IndexManager::getQuestionOffset(int id, int64_t& outOffset) const {
     return false;
 }
 
+bool IndexManager::getQuestionSubject(int id, std::string& outMamh) const {
+    const std::string* ptr = m_questionSubjectIndex.find(id);
+    if (ptr) {
+        outMamh = *ptr;
+        return true;
+    }
+    return false;
+}
+
 bool IndexManager::getStudentOffset(const std::string& masv, int64_t& outOffset) const {
     const int64_t* ptr = m_studentIndex.find(masv);
     if (ptr) {
@@ -535,42 +555,58 @@ bool IndexManager::getHistoryOffsets(const std::string& masv, DArray<int64_t>& o
 
 void IndexManager::updateQuestionOffset(int id, int64_t offset) {
     m_questionIndex.insert(id, offset);
-    saveQuestionIndex();
+    m_questionDirty = true;
+    if (m_autoFlush) saveQuestionIndex();
 }
 
 void IndexManager::removeQuestionOffset(int id) {
     m_questionIndex.remove(id);
-    saveQuestionIndex();
+    m_questionDirty = true;
+    if (m_autoFlush) saveQuestionIndex();
+}
+
+void IndexManager::updateQuestionSubject(int id, const std::string& mamh) {
+    m_questionSubjectIndex.insert(id, mamh);
+}
+
+void IndexManager::removeQuestionSubject(int id) {
+    m_questionSubjectIndex.remove(id);
 }
 
 void IndexManager::updateStudentOffset(const std::string& masv, int64_t offset) {
     m_studentIndex.insert(masv, offset);
-    saveStudentIndex();
+    m_studentDirty = true;
+    if (m_autoFlush) saveStudentIndex();
 }
 
 void IndexManager::removeStudentOffset(const std::string& masv) {
     m_studentIndex.remove(masv);
-    saveStudentIndex();
+    m_studentDirty = true;
+    if (m_autoFlush) saveStudentIndex();
 }
 
 void IndexManager::updateSubjectOffset(const std::string& mamh, int64_t offset) {
     m_subjectIndex.insert(mamh, offset);
-    saveSubjectIndex();
+    m_subjectDirty = true;
+    if (m_autoFlush) saveSubjectIndex();
 }
 
 void IndexManager::removeSubjectOffset(const std::string& mamh) {
     m_subjectIndex.remove(mamh);
-    saveSubjectIndex();
+    m_subjectDirty = true;
+    if (m_autoFlush) saveSubjectIndex();
 }
 
 void IndexManager::updateClassOffset(const std::string& malop, int64_t offset) {
     m_classIndex.insert(malop, offset);
-    saveClassIndex();
+    m_classDirty = true;
+    if (m_autoFlush) saveClassIndex();
 }
 
 void IndexManager::removeClassOffset(const std::string& malop) {
     m_classIndex.remove(malop);
-    saveClassIndex();
+    m_classDirty = true;
+    if (m_autoFlush) saveClassIndex();
 }
 
 void IndexManager::appendHistoryOffset(const std::string& masv, int64_t offset) {
@@ -582,5 +618,14 @@ void IndexManager::appendHistoryOffset(const std::string& masv, int64_t offset) 
         newArr.push_back(offset);
         m_historyIndex.insert(masv, newArr);
     }
-    saveHistoryIndex();
+    m_historyDirty = true;
+    if (m_autoFlush) saveHistoryIndex();
+}
+
+void IndexManager::flushDirtyIndexes() {
+    if (m_questionDirty) { saveQuestionIndex(); m_questionDirty = false; }
+    if (m_studentDirty) { saveStudentIndex(); m_studentDirty = false; }
+    if (m_subjectDirty) { saveSubjectIndex(); m_subjectDirty = false; }
+    if (m_classDirty) { saveClassIndex(); m_classDirty = false; }
+    if (m_historyDirty) { saveHistoryIndex(); m_historyDirty = false; }
 }

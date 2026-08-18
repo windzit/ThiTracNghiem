@@ -6,7 +6,6 @@
 using namespace std;
 
 void handle_login(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     json body;
     try { body = json::parse(req.body); }
     catch (...) { error_response(res, "Invalid JSON", 400); return; }
@@ -24,13 +23,8 @@ void handle_login(const httplib::Request& req, httplib::Response& res) {
             json_response(res, {{"role","teacher"},{"username",username}});
         } else { error_response(res, "Invalid credentials", 401); }
     } else if (role == "student") {
-        if (login_student(*dsl.getRoot(), username, password)) {
-            SinhVien* sv = nullptr;
-            dsLop* root = dsl.getRoot();
-            for (int i = 0; i < root->n && !sv; i++)
-                if (root->dslop[i]) sv = root->dslop[i]->dssinhvien.find(username);
-            if (!sv) { error_response(res, "Student not found", 404); return; }
-
+        SinhVien* sv = findStudentGlobal(username, nullptr);
+        if (sv && sv->passsword == password) {
             json_response(res, {
                 {"role","student"},
                 {"masv",sv->MASV},
@@ -43,7 +37,6 @@ void handle_login(const httplib::Request& req, httplib::Response& res) {
 }
 
 void handle_logout(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     json body;
     try { body = json::parse(req.body); }
     catch (...) { body = json::object(); }

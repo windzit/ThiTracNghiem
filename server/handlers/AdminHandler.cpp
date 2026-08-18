@@ -5,18 +5,15 @@
 using namespace std;
 
 void handle_admin_save(const httplib::Request&, httplib::Response& res) {
-    set_cors_headers(res);
     json_response(res, {{"message", "All storage data saved successfully"}});
 }
 
 void handle_get_system_settings(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     DB_READ_LOCK;
     json_response(res, {{"fullscreenRequired", g_fullscreenRequired}});
 }
 
 void handle_post_system_settings(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     DB_WRITE_LOCK;
     json body;
     try { body = json::parse(req.body); }
@@ -32,8 +29,7 @@ void handle_post_system_settings(const httplib::Request& req, httplib::Response&
 }
 
 void handle_rebuild_used(const httplib::Request&, httplib::Response& res) {
-    set_cors_headers(res);
     DB_WRITE_LOCK;
-    StorageManager::getInstance().rebuildUsedFlags(dsmh);
+    StorageManager::getInstance().rebuildUsedFlags(dsmh, &dsl);
     json_response(res, {{"message", "Used flags rebuilt successfully"}});
 }

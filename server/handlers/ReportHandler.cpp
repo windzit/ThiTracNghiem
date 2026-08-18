@@ -18,7 +18,6 @@ static void collectMAMHNames(NodeMH* node, DArray<string>& mamhs) {
 }
 
 void handle_report_exam(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     DB_READ_LOCK;
     string malop = req.get_param_value("malop");
     string masv = req.get_param_value("masv");
@@ -28,10 +27,10 @@ void handle_report_exam(const httplib::Request& req, httplib::Response& res) {
         error_response(res, "malop, masv, mamh required", 400); return;
     }
 
-    Lop* lop = dsl.find(malop);
-    if (!lop) { error_response(res, "Class not found", 404); return; }
-    SinhVien* sv = lop->dssinhvien.find(masv);
-    if (!sv) { error_response(res, "Student not found", 404); return; }
+    Lop* lop = nullptr;
+    SinhVien* sv = findStudentGlobal(masv, &lop);
+    if (!sv || !lop) { error_response(res, "Student not found", 404); return; }
+    if (lop->MALOP != malop) { error_response(res, "Student does not belong to this class", 404); return; }
     dsDiemThi* diem = sv->dsdiemthi.find(mamh.c_str());
     if (!diem) { error_response(res, "Chua thi mon nay", 404); return; }
     NodeMH* node = dsmh.find(mamh.c_str());
@@ -130,11 +129,10 @@ void handle_report_exam(const httplib::Request& req, httplib::Response& res) {
 }
 
 void handle_report_scoreboard(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     DB_READ_LOCK;
     string malop = req.get_param_value("malop");
     if (malop.empty()) { error_response(res, "malop required", 400); return; }
-    Lop* lop = dsl.find(malop);
+    Lop* lop = findClassGlobal(malop);
     if (!lop) { error_response(res, "Class not found", 404); return; }
 
     DArray<string> allMAMH;
@@ -168,7 +166,6 @@ void handle_report_scoreboard(const httplib::Request& req, httplib::Response& re
 }
 
 void handle_delete_score(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     DB_WRITE_LOCK;
     string masv = req.get_param_value("masv");
     string mamh = req.get_param_value("mamh");
@@ -178,27 +175,13 @@ void handle_delete_score(const httplib::Request& req, httplib::Response& res) {
         error_response(res, "masv and mamh required", 400); return;
     }
 
-    SinhVien* sv = nullptr;
-    if (!malop.empty()) {
-        Lop* lop = dsl.find(malop);
-        if (lop) sv = lop->dssinhvien.find(masv);
-    } else {
-        dsLop* root = dsl.getRoot();
-        if (root) {
-            for (int i = 0; i < root->n && !sv; i++) {
-                if (root->dslop[i]) {
-                    sv = root->dslop[i]->dssinhvien.find(masv);
-                }
-            }
-        }
-    }
-
+    SinhVien* sv = findStudentGlobal(masv, nullptr);
     if (!sv) { error_response(res, "Student not found", 404); return; }
 
     bool removed = sv->dsdiemthi.remove(mamh.c_str());
     if (removed) {
         StorageManager::getInstance().saveScores(dsl);
-        StorageManager::getInstance().rebuildUsedFlags(dsmh);
+        StorageManager::getInstance().rebuildUsedFlags(dsmh, &dsl);
         json_response(res, {{"message","Score deleted successfully"},{"masv",masv},{"mamh",mamh}});
     } else {
         error_response(res, "Score not found for this subject", 404);

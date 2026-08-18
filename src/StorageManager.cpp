@@ -308,7 +308,9 @@ bool StorageManager::loadQuestions(Subject& dsmh) {
                     continue;
                 }
 
-                node->data.dsCauHoi.insert(q, false);
+                if (node->data.dsCauHoi.insert(q, false)) {
+                    IndexManager::getInstance().updateQuestionSubject(q.ID, mamh);
+                }
             }
         }
     }
@@ -320,6 +322,21 @@ bool StorageManager::loadScores(Class& dsl) {
     std::string filePath = PathResolver::getFilePath("scores.txt");
     std::ifstream file(filePath);
     if (!file.is_open()) return false;
+
+    // Fast lookup map for startup loadScores: MASV -> SinhVien*
+    HashTable<std::string, SinhVien*> svMap;
+    dsLop* rootLop = dsl.getRoot();
+    if (rootLop) {
+        for (int i = 0; i < rootLop->n; i++) {
+            Lop* lop = rootLop->dslop[i];
+            if (!lop) continue;
+            dsSinhVien* curSV = lop->dssinhvien.getRoot();
+            while (curSV) {
+                svMap.insert(curSV->sinhvien.MASV, &(curSV->sinhvien));
+                curSV = curSV->next;
+            }
+        }
+    }
 
     std::string line;
     bool isHeader = true;
@@ -334,20 +351,12 @@ bool StorageManager::loadScores(Class& dsl) {
             std::string mamh = trim(tokens[1]);
             float diem = std::stof(trim(tokens[2]));
 
-            dsLop* rootLop = dsl.getRoot();
-            if (rootLop) {
-                for (int i = 0; i < rootLop->n; i++) {
-                    Lop* lop = rootLop->dslop[i];
-                    if (!lop) continue;
-                    SinhVien* sv = lop->dssinhvien.find(masv);
-                    if (sv) {
-                        DiemThi dt;
-                        std::strcpy(dt.MAMH, mamh.c_str());
-                        dt.DIEM = diem;
-                        sv->dsdiemthi.insert(dt);
-                        break;
-                    }
-                }
+            SinhVien** svPtr = svMap.find(masv);
+            if (svPtr && *svPtr) {
+                DiemThi dt;
+                std::strcpy(dt.MAMH, mamh.c_str());
+                dt.DIEM = diem;
+                (*svPtr)->dsdiemthi.insert(dt);
             }
         }
     }
@@ -489,7 +498,7 @@ bool StorageManager::loadAllData(Class& dsl, Subject& dsmh) {
     std::cout << "[STARTUP LOG] [END] loadExamSessions\n";
 
     std::cout << "[STARTUP LOG] [BEGIN] Rebuild derived 'used' flags\n";
-    rebuildUsedFlags(dsmh);
+    rebuildUsedFlags(dsmh, &dsl);
     std::cout << "[STARTUP LOG] [END] Rebuild derived 'used' flags\n";
 
     std::cout << "[STARTUP LOG] [BEGIN] StorageIntegrityChecker::auditStorageIntegrity\n";
@@ -705,14 +714,25 @@ bool StorageManager::saveScores(Class& dsl) {
         }
     }
     std::string targetPath = PathResolver::getFilePath("scores.txt");
-    if (!atomicWriteFile(targetPath, ss.str())) return false;
+    return atomicWriteFile(targetPath, ss.str());
+}
 
-    std::string verifyErr;
-    if (!StorageVerifier::verifyScores(dsl, targetPath, verifyErr)) {
-        std::cerr << "[StorageVerification] Deep verification failed: " << verifyErr << std::endl;
+bool StorageManager::appendScore(const std::string& masv, const std::string& mamh, float diem) {
+    std::string errReason;
+    DiemThi dt;
+    strncpy(dt.MAMH, mamh.c_str(), sizeof(dt.MAMH) - 1);
+    dt.MAMH[sizeof(dt.MAMH) - 1] = '\0';
+    dt.DIEM = diem;
+    if (!StorageValidator::validateScore(masv, dt, errReason)) {
+        std::cerr << "[StorageValidation] appendScore validation failed: " << errReason << std::endl;
         return false;
     }
-    return true;
+    std::string targetPath = PathResolver::getFilePath("scores.txt");
+    std::ofstream ofs(targetPath, std::ios::app);
+    if (!ofs.is_open()) return false;
+    ofs << masv << '|' << mamh << '|' << diem << '\n';
+    ofs.flush();
+    return ofs.good();
 }
 
 static bool flushExamSessionsFile() {
@@ -795,31 +815,32 @@ bool StorageManager::appendExamHistory(const ExamSession& session, float diem) {
     }
 
     std::string filePath = PathResolver::getFilePath("exam_history.txt");
-    std::ifstream in(filePath);
-    std::ostringstream ss;
-    bool hasHeader = false;
-    int existingLines = 0;
-    if (in.is_open()) {
-        std::string line;
-        if (std::getline(in, line)) {
-            ss << line << "\n";
-            hasHeader = true;
-            existingLines++;
-        }
-        while (std::getline(in, line)) {
-            if (!StorageValidator::isEmptyOrWhitespace(line)) {
-                ss << line << "\n";
-                existingLines++;
+    bool needsHeader = true;
+    if (fs::exists(filePath)) {
+        std::ifstream testIn(filePath, std::ios::in | std::ios::binary);
+        if (testIn.is_open()) {
+            std::string firstLine;
+            if (std::getline(testIn, firstLine) && !firstLine.empty()) {
+                needsHeader = false;
             }
+            testIn.close();
         }
-        in.close();
     }
 
-    if (!hasHeader) {
-        ss << "MASV|MAMH|THOIGIAN_BATDAU|DIEM|QUESTION_IDS|ANSWERS\n";
-        existingLines = 1;
+    if (needsHeader) {
+        std::ofstream headerOut(filePath, std::ios::out | std::ios::binary);
+        if (!headerOut.is_open()) return false;
+        headerOut << "MASV|MAMH|THOIGIAN_BATDAU|DIEM|QUESTION_IDS|ANSWERS\n";
+        headerOut.close();
     }
 
+    std::ofstream out(filePath, std::ios::out | std::ios::app | std::ios::binary);
+    if (!out.is_open()) return false;
+
+    out.seekp(0, std::ios::end);
+    int64_t newOffset = out.tellp();
+
+    std::ostringstream ss;
     ss << session.MASV << '|'
        << session.MAMH << '|'
        << session.thoiGianBatDau << '|'
@@ -839,15 +860,11 @@ bool StorageManager::appendExamHistory(const ExamSession& session, float diem) {
     }
     ss << '\n';
 
-    if (!atomicWriteFile(filePath, ss.str())) return false;
+    out << ss.str();
+    out.flush();
+    out.close();
 
-    std::string verifyErr;
-    if (!StorageVerifier::verifyFileRowCount(filePath, 1, existingLines, verifyErr)) {
-        std::cerr << "[StorageVerification] " << verifyErr << std::endl;
-        return false;
-    }
-    IndexManager::getInstance().rebuildHistoryIndex();
-    IndexManager::getInstance().saveHistoryIndex();
+    IndexManager::getInstance().appendHistoryOffset(session.MASV, newOffset);
     return true;
 }
 
@@ -942,7 +959,7 @@ bool StorageManager::saveAllData(Class& dsl, Subject& dsmh) {
     return true;
 }
 
-void StorageManager::rebuildUsedFlags(Subject& dsmh) {
+void StorageManager::rebuildUsedFlags(Subject& dsmh, Class* dsl) {
     // 1. Reset all question and subject used flags to false
     std::function<void(NodeMH*)> clearNode = [&](NodeMH* node) {
         if (!node) return;
@@ -1008,26 +1025,48 @@ void StorageManager::rebuildUsedFlags(Subject& dsmh) {
         hFile.close();
     }
 
-    // 4. Mark subject used if any student has scores for that subject in scores.txt
-    std::string scoresPath = PathResolver::getFilePath("scores.txt");
-    std::ifstream scFile(scoresPath);
-    if (scFile.is_open()) {
-        std::string line;
-        bool isHeader = true;
-        while (std::getline(scFile, line)) {
-            std::string trimmed = trim(line);
-            if (trimmed.empty()) continue;
-            if (isHeader) { isHeader = false; continue; }
-            DArray<std::string> tokens = split(trimmed, '|');
-            if (tokens.size() >= 2) {
-                std::string mamh = trim(tokens[1]);
-                NodeMH* node = dsmh.find(mamh.c_str());
-                if (node) {
-                    node->data.used = true;
+    // 4. Mark subject used if any student has scores for that subject
+    if (dsl) {
+        dsLop* rootLop = dsl->getRoot();
+        if (rootLop) {
+            for (int i = 0; i < rootLop->n; i++) {
+                Lop* lop = rootLop->dslop[i];
+                if (!lop) continue;
+                dsSinhVien* curSV = lop->dssinhvien.getRoot();
+                while (curSV) {
+                    dsDiemThi* curScore = curSV->sinhvien.dsdiemthi.getRoot();
+                    while (curScore) {
+                        NodeMH* node = dsmh.find(curScore->diemthi.MAMH);
+                        if (node) {
+                            node->data.used = true;
+                        }
+                        curScore = curScore->next;
+                    }
+                    curSV = curSV->next;
                 }
             }
         }
-        scFile.close();
+    } else {
+        std::string scoresPath = PathResolver::getFilePath("scores.txt");
+        std::ifstream scFile(scoresPath);
+        if (scFile.is_open()) {
+            std::string line;
+            bool isHeader = true;
+            while (std::getline(scFile, line)) {
+                std::string trimmed = trim(line);
+                if (trimmed.empty()) continue;
+                if (isHeader) { isHeader = false; continue; }
+                DArray<std::string> tokens = split(trimmed, '|');
+                if (tokens.size() >= 2) {
+                    std::string mamh = trim(tokens[1]);
+                    NodeMH* node = dsmh.find(mamh.c_str());
+                    if (node) {
+                        node->data.used = true;
+                    }
+                }
+            }
+            scFile.close();
+        }
     }
 }
 

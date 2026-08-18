@@ -82,7 +82,7 @@ bool Score::remove(const char* MAMH) {
 
 	dsDiemThi* cur = root;
 	dsDiemThi* par = nullptr;
-	int cmp;	
+	int cmp = -1;	
 	while (cur) {
 		cmp = strcmp(cur->diemthi.MAMH, MAMH);
 		if (cmp == 0)

@@ -105,6 +105,7 @@ bool StorageValidator::validateStudent(const SinhVien& sv, const std::string& ma
     std::string ho = trim(sv.HO);
     std::string ten = trim(sv.TEN);
     std::string pass = trim(sv.passsword);
+    std::string phai = trim(sv.PHAI);
     std::string charReason;
 
     if (masv.empty()) {
@@ -127,6 +128,8 @@ bool StorageValidator::validateStudent(const SinhVien& sv, const std::string& ma
         logValidationError("Student", masv, "HO/TEN", sv.HO + " " + sv.TEN, errReason);
         return false;
     }
+    
+ 
     if (containsForbiddenChars(sv.HO, charReason)) {
         errReason = "Student HO " + charReason + " for MASV: " + masv;
         logValidationError("Student", masv, "HO", sv.HO, errReason);

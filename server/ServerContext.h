@@ -24,9 +24,22 @@ extern bool g_fullscreenRequired;
 void json_response(httplib::Response& res, const json& data, int status = 200);
 void error_response(httplib::Response& res, const std::string& msg, int status);
 void custom_json_response(httplib::Response& res, const json& body, int status = 200);
-void set_cors_headers(httplib::Response& res);
 std::string get_path_param(const httplib::Request& req, const std::string& name);
 
 // Global domain helpers
+struct StudentLocation {
+    SinhVien* sv = nullptr;
+    Lop* lop = nullptr;
+};
+
+void registerStudentGlobal(const std::string& masv, SinhVien* sv, Lop* lop);
+void unregisterStudentGlobal(const std::string& masv);
+void rebuildGlobalStudentMap();
+
+void registerClassGlobal(const std::string& malop, Lop* lop);
+void unregisterClassGlobal(const std::string& malop);
+void rebuildGlobalClassMap();
+
 SinhVien* findStudentGlobal(const std::string& masv, Lop** outLop = nullptr);
+Lop* findClassGlobal(const std::string& malop);
 NodeMH* find_subject_smart(const std::string& mamh);

@@ -13,7 +13,6 @@
 using namespace std;
 
 void handle_exam_start(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     DB_WRITE_LOCK;
     json body;
     try { body = json::parse(req.body); }
@@ -45,10 +44,7 @@ void handle_exam_start(const httplib::Request& req, httplib::Response& res) {
         }
     }
 
-    SinhVien* sv = nullptr;
-    dsLop* root = dsl.getRoot();
-    for (int i = 0; i < root->n && !sv; i++)
-        if (root->dslop[i]) sv = root->dslop[i]->dssinhvien.find(masv);
+    SinhVien* sv = findStudentGlobal(masv, nullptr);
     if (!sv) { error_response(res, "Student not found", 404); return; }
 
     if (sv->dsdiemthi.find(mamh.c_str())) {
@@ -101,7 +97,12 @@ void handle_exam_start(const httplib::Request& req, httplib::Response& res) {
 
     session.lastServerActivityAt = std::time(nullptr);
     saveExamSession(session);
-    StorageManager::getInstance().rebuildUsedFlags(dsmh);
+    if (node) {
+        node->data.used = true;
+        for (int i = 0; i < socau; i++) {
+            all[i]->cauhoi.used = true;
+        }
+    }
 
     json_response(res, {
         {"questions", qs},
@@ -113,7 +114,6 @@ void handle_exam_start(const httplib::Request& req, httplib::Response& res) {
 }
 
 void handle_exam_resume(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     DB_READ_LOCK;
     string masv = req.get_param_value("masv");
     if (masv.empty()) {
@@ -169,7 +169,6 @@ void handle_exam_resume(const httplib::Request& req, httplib::Response& res) {
 }
 
 void handle_exam_answer(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     DB_WRITE_LOCK;
     json body;
     try { body = json::parse(req.body); }
@@ -211,7 +210,6 @@ void handle_exam_answer(const httplib::Request& req, httplib::Response& res) {
 }
 
 void handle_exam_submit(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     DB_WRITE_LOCK;
     json body;
     try { body = json::parse(req.body); }
@@ -225,10 +223,7 @@ void handle_exam_submit(const httplib::Request& req, httplib::Response& res) {
         error_response(res, "masv, mamh required", 400); return;
     }
 
-    SinhVien* sv = nullptr;
-    dsLop* root = dsl.getRoot();
-    for (int i = 0; i < root->n && !sv; i++)
-        if (root->dslop[i]) sv = root->dslop[i]->dssinhvien.find(masv);
+    SinhVien* sv = findStudentGlobal(masv, nullptr);
     if (!sv) { error_response(res, "Student not found", 404); return; }
 
     NodeMH* node = find_subject_smart(mamh);
@@ -260,13 +255,13 @@ void handle_exam_submit(const httplib::Request& req, httplib::Response& res) {
     dt.DIEM = diem;
     bool saved = sv->dsdiemthi.insert(dt);
     if (saved) {
-        StorageManager::getInstance().saveScores(dsl);
+        StorageManager::getInstance().appendScore(masv, mamh, diem);
     }
 
     StorageManager::getInstance().appendExamHistory(session, diem);
     removeExamSession(masv);
 
-    StorageManager::getInstance().rebuildUsedFlags(dsmh);
+    StorageManager::getInstance().rebuildUsedFlags(dsmh, &dsl);
 
     json_response(res, {{"soDung",soDung},{"total",total},
         {"diem",diem},{"saved",saved}});

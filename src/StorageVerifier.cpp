@@ -14,12 +14,12 @@ bool StorageVerifier::verifyClasses(Class& dsl, const std::string& filePath, std
     }
 
     // Collect RAM objects
-    DArray<Lop> ramList;
+    DArray<const Lop*> ramList;
     dsLop* root = dsl.getRoot();
     if (root) {
         for (int i = 0; i < root->n; i++) {
             if (root->dslop[i]) {
-                ramList.push_back(*root->dslop[i]);
+                ramList.push_back(root->dslop[i]);
             }
         }
     }
@@ -31,7 +31,7 @@ bool StorageVerifier::verifyClasses(Class& dsl, const std::string& filePath, std
     }
 
     for (int i = 0; i < ramList.size(); i++) {
-        const Lop& ram = ramList[i];
+        const Lop& ram = *ramList[i];
         const Lop& disk = readBack[i];
         if (trim(ram.MALOP) != trim(disk.MALOP)) {
             errReason = "MALOP mismatch at index " + std::to_string(i);
@@ -58,7 +58,7 @@ bool StorageVerifier::verifyStudents(Class& dsl, const std::string& filePath, st
     }
 
     // Collect RAM objects
-    DArray<SinhVien> ramList;
+    DArray<const SinhVien*> ramList;
     DArray<std::string> ramClassCodes;
     dsLop* root = dsl.getRoot();
     if (root) {
@@ -67,7 +67,7 @@ bool StorageVerifier::verifyStudents(Class& dsl, const std::string& filePath, st
             if (!lop) continue;
             dsSinhVien* cur = lop->dssinhvien.getRoot();
             while (cur) {
-                ramList.push_back(cur->sinhvien);
+                ramList.push_back(&(cur->sinhvien));
                 ramClassCodes.push_back(lop->MALOP);
                 cur = cur->next;
             }
@@ -81,7 +81,7 @@ bool StorageVerifier::verifyStudents(Class& dsl, const std::string& filePath, st
     }
 
     for (int i = 0; i < ramList.size(); i++) {
-        const SinhVien& ram = ramList[i];
+        const SinhVien& ram = *ramList[i];
         const SinhVien& disk = readBack[i];
         std::string pk = ram.MASV;
 
@@ -115,10 +115,10 @@ bool StorageVerifier::verifyStudents(Class& dsl, const std::string& filePath, st
     return true;
 }
 
-static void collectSubjectsFromRAM(NodeMH* node, DArray<MonHoc>& ramList) {
+static void collectSubjectsFromRAM(NodeMH* node, DArray<const MonHoc*>& ramList) {
     if (!node) return;
     collectSubjectsFromRAM(node->left, ramList);
-    ramList.push_back(node->data);
+    ramList.push_back(&(node->data));
     collectSubjectsFromRAM(node->right, ramList);
 }
 
@@ -130,7 +130,7 @@ bool StorageVerifier::verifySubjects(Subject& dsmh, const std::string& filePath,
         return false;
     }
 
-    DArray<MonHoc> ramList;
+    DArray<const MonHoc*> ramList;
     collectSubjectsFromRAM(dsmh.getRoot(), ramList);
 
     if (ramList.size() != readBack.size()) {
@@ -140,7 +140,7 @@ bool StorageVerifier::verifySubjects(Subject& dsmh, const std::string& filePath,
     }
 
     for (int i = 0; i < ramList.size(); i++) {
-        const MonHoc& ram = ramList[i];
+        const MonHoc& ram = *ramList[i];
         const MonHoc& disk = readBack[i];
         std::string pk = ram.MAMH;
 
@@ -159,14 +159,14 @@ bool StorageVerifier::verifySubjects(Subject& dsmh, const std::string& filePath,
     return true;
 }
 
-static void collectQuestionsFromRAM(NodeMH* node, DArray<CauHoi>& ramList, DArray<std::string>& subjectCodes) {
+static void collectQuestionsFromRAM(NodeMH* node, DArray<const CauHoi*>& ramList, DArray<std::string>& subjectCodes) {
     if (!node) return;
     collectQuestionsFromRAM(node->left, ramList, subjectCodes);
 
     const MonHoc& mh = node->data;
     dsCHT* qNode = const_cast<MonHoc&>(mh).dsCauHoi.getRoot();
     while (qNode) {
-        ramList.push_back(qNode->cauhoi);
+        ramList.push_back(&(qNode->cauhoi));
         subjectCodes.push_back(mh.MAMH);
         qNode = qNode->next;
     }
@@ -183,7 +183,7 @@ bool StorageVerifier::verifyQuestions(Subject& dsmh, const std::string& filePath
         return false;
     }
 
-    DArray<CauHoi> ramList;
+    DArray<const CauHoi*> ramList;
     DArray<std::string> ramSubjectCodes;
     collectQuestionsFromRAM(dsmh.getRoot(), ramList, ramSubjectCodes);
 
@@ -194,7 +194,7 @@ bool StorageVerifier::verifyQuestions(Subject& dsmh, const std::string& filePath
     }
 
     for (int i = 0; i < ramList.size(); i++) {
-        const CauHoi& ram = ramList[i];
+        const CauHoi& ram = *ramList[i];
         const CauHoi& disk = readBack[i];
         std::string pk = std::to_string(ram.ID);
 

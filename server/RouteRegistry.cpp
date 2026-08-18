@@ -80,7 +80,6 @@ void registerRoutes(httplib::Server& svr) {
     svr.Post("/api/questions/bulk-delete", wrap_safe(handle_bulk_delete_questions));
     svr.Put("/api/questions/:id", wrap_safe(handle_update_question));
     svr.Put("/api/questions/:id/restore", wrap_safe(handle_restore_question));
-    svr.Post("/api/questions/:id/restore", wrap_safe(handle_restore_question));
     svr.Delete("/api/questions/:id", wrap_safe(handle_delete_question));
 
     // Exam

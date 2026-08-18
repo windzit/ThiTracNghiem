@@ -10,7 +10,6 @@
 using namespace std;
 
 void handle_create_question(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     DB_WRITE_LOCK;
     json body;
     try { body = json::parse(req.body); }
@@ -60,7 +59,6 @@ void handle_create_question(const httplib::Request& req, httplib::Response& res)
 }
 
 void handle_update_question(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     DB_WRITE_LOCK;
     string idStr = get_path_param(req, "id");
     if (idStr.empty()) { error_response(res, "id required", 400); return; }
@@ -115,7 +113,6 @@ void handle_update_question(const httplib::Request& req, httplib::Response& res)
 }
 
 void handle_delete_question(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     DB_WRITE_LOCK;
     string idStr = get_path_param(req, "id");
     if (idStr.empty()) { error_response(res, "id required", 400); return; }
@@ -133,17 +130,30 @@ void handle_delete_question(const httplib::Request& req, httplib::Response& res)
             foundQNode = foundNode->data.dsCauHoi.find(id);
         }
     } else {
-        std::function<NodeMH*(NodeMH*)> searchNode = [&](NodeMH* node) -> NodeMH* {
-            if (!node) return nullptr;
-            NodeMH* left = searchNode(node->left);
-            if (left) return left;
-            if (node->data.dsCauHoi.find(id)) return node;
-            return searchNode(node->right);
-        };
-        foundNode = searchNode(dsmh.getRoot());
-        if (foundNode) {
-            foundQNode = foundNode->data.dsCauHoi.find(id);
-            mamh = string(foundNode->data.MAMH);
+        string mappedMamh;
+        if (IndexManager::getInstance().getQuestionSubject(id, mappedMamh)) {
+            foundNode = dsmh.find(mappedMamh.c_str());
+            if (foundNode) {
+                foundQNode = foundNode->data.dsCauHoi.find(id);
+                mamh = mappedMamh;
+            }
+        }
+        if (!foundNode) {
+            std::cerr << "[WARN] handle_delete_question: question id=" << id
+                      << " not found in questionSubjectIndex. Falling back to BST scan.\n";
+            std::function<NodeMH*(NodeMH*)> searchNode = [&](NodeMH* node) -> NodeMH* {
+                if (!node) return nullptr;
+                NodeMH* left = searchNode(node->left);
+                if (left) return left;
+                if (node->data.dsCauHoi.find(id)) return node;
+                return searchNode(node->right);
+            };
+            foundNode = searchNode(dsmh.getRoot());
+            if (foundNode) {
+                foundQNode = foundNode->data.dsCauHoi.find(id);
+                mamh = string(foundNode->data.MAMH);
+                IndexManager::getInstance().updateQuestionSubject(id, mamh);
+            }
         }
     }
 
@@ -173,6 +183,7 @@ void handle_delete_question(const httplib::Request& req, httplib::Response& res)
         StorageManager::getInstance().markQuestionStatusAt(offset, targetStatus);
         if (targetStatus == STATUS_DELETED) {
             IndexManager::getInstance().removeQuestionOffset(id);
+            IndexManager::getInstance().removeQuestionSubject(id);
         }
     }
 
@@ -180,7 +191,6 @@ void handle_delete_question(const httplib::Request& req, httplib::Response& res)
 }
 
 void handle_bulk_delete_questions(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     DB_WRITE_LOCK;
     json body;
     try { body = json::parse(req.body); }
@@ -253,7 +263,6 @@ void handle_bulk_delete_questions(const httplib::Request& req, httplib::Response
 }
 
 void handle_restore_question(const httplib::Request& req, httplib::Response& res) {
-    set_cors_headers(res);
     DB_WRITE_LOCK;
     string idStr = get_path_param(req, "id");
     if (idStr.empty()) { error_response(res, "id required", 400); return; }
@@ -271,17 +280,30 @@ void handle_restore_question(const httplib::Request& req, httplib::Response& res
             foundQNode = foundNode->data.dsCauHoi.find(id);
         }
     } else {
-        std::function<NodeMH*(NodeMH*)> searchNode = [&](NodeMH* node) -> NodeMH* {
-            if (!node) return nullptr;
-            NodeMH* left = searchNode(node->left);
-            if (left) return left;
-            if (node->data.dsCauHoi.find(id)) return node;
-            return searchNode(node->right);
-        };
-        foundNode = searchNode(dsmh.getRoot());
-        if (foundNode) {
-            foundQNode = foundNode->data.dsCauHoi.find(id);
-            mamh = string(foundNode->data.MAMH);
+        string mappedMamh;
+        if (IndexManager::getInstance().getQuestionSubject(id, mappedMamh)) {
+            foundNode = dsmh.find(mappedMamh.c_str());
+            if (foundNode) {
+                foundQNode = foundNode->data.dsCauHoi.find(id);
+                mamh = mappedMamh;
+            }
+        }
+        if (!foundNode) {
+            std::cerr << "[WARN] handle_restore_question: question id=" << id
+                      << " not found in questionSubjectIndex. Falling back to BST scan.\n";
+            std::function<NodeMH*(NodeMH*)> searchNode = [&](NodeMH* node) -> NodeMH* {
+                if (!node) return nullptr;
+                NodeMH* left = searchNode(node->left);
+                if (left) return left;
+                if (node->data.dsCauHoi.find(id)) return node;
+                return searchNode(node->right);
+            };
+            foundNode = searchNode(dsmh.getRoot());
+            if (foundNode) {
+                foundQNode = foundNode->data.dsCauHoi.find(id);
+                mamh = string(foundNode->data.MAMH);
+                IndexManager::getInstance().updateQuestionSubject(id, mamh);
+            }
         }
     }
 

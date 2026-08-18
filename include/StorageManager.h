@@ -31,6 +31,7 @@ public:
 
     bool loadScores(Class& dsl);
     bool saveScores(Class& dsl);
+    bool appendScore(const std::string& masv, const std::string& mamh, float diem);
 
     bool loadExamSessions(DArray<ExamSession>& sessions);
     bool saveExamSession(const ExamSession& session);
@@ -53,7 +54,7 @@ public:
     bool saveMetadata();
 
     // Derived Used Flags Rebuild Strategy
-    void rebuildUsedFlags(Subject& dsmh);
+    void rebuildUsedFlags(Subject& dsmh, Class* dsl = nullptr);
 
     // Index Manager Acceleration Coordination
     bool rebuildIndexes();

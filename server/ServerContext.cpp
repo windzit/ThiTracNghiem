@@ -22,12 +22,6 @@ void custom_json_response(httplib::Response& res, const json& body, int status) 
     res.set_content(body.dump(), "application/json; charset=utf-8");
 }
 
-void set_cors_headers(httplib::Response& res) {
-    res.set_header("Access-Control-Allow-Origin", "http://localhost:5173");
-    res.set_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-    res.set_header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-}
-
 std::string get_path_param(const httplib::Request& req, const std::string& name) {
     auto it = req.path_params.find(name);
     if (it != req.path_params.end()) {
@@ -36,7 +30,46 @@ std::string get_path_param(const httplib::Request& req, const std::string& name)
     return "";
 }
 
+#include "HashTable.h"
+
+static HashTable<std::string, StudentLocation> g_studentMap;
+
+void registerStudentGlobal(const std::string& masv, SinhVien* sv, Lop* lop) {
+    if (!masv.empty() && sv && lop) {
+        g_studentMap.insert(masv, StudentLocation{sv, lop});
+    }
+}
+
+void unregisterStudentGlobal(const std::string& masv) {
+    if (!masv.empty()) {
+        g_studentMap.remove(masv);
+    }
+}
+
+void rebuildGlobalStudentMap() {
+    g_studentMap.clear();
+    dsLop* root = dsl.getRoot();
+    if (!root) return;
+    for (int i = 0; i < root->n; i++) {
+        Lop* lop = root->dslop[i];
+        if (!lop) continue;
+        dsSinhVien* cur = lop->dssinhvien.getRoot();
+        while (cur) {
+            g_studentMap.insert(cur->sinhvien.MASV, StudentLocation{&(cur->sinhvien), lop});
+            cur = cur->next;
+        }
+    }
+}
+
 SinhVien* findStudentGlobal(const std::string& masv, Lop** outLop) {
+    StudentLocation* loc = g_studentMap.find(masv);
+    if (loc && loc->sv) {
+        if (outLop) *outLop = loc->lop;
+        return loc->sv;
+    }
+
+    // Fallback scan if map was not yet initialized or record was just loaded
+    std::cerr << "[WARN] findStudentGlobal: map miss for masv=" << masv << ". Falling back to linear scan.\n";
     dsLop* root = dsl.getRoot();
     if (!root) return nullptr;
     for (int i = 0; i < root->n; i++) {
@@ -44,12 +77,53 @@ SinhVien* findStudentGlobal(const std::string& masv, Lop** outLop) {
         SinhVien* sv = root->dslop[i]->dssinhvien.find(masv);
         if (sv) {
             if (outLop) *outLop = root->dslop[i];
+            g_studentMap.insert(masv, StudentLocation{sv, root->dslop[i]});
             return sv;
         }
     }
     return nullptr;
 }
 
+static HashTable<std::string, Lop*> g_classMap;
+
+void registerClassGlobal(const std::string& malop, Lop* lop) {
+    if (!malop.empty() && lop) {
+        g_classMap.insert(malop, lop);
+    }
+}
+
+void unregisterClassGlobal(const std::string& malop) {
+    if (!malop.empty()) {
+        g_classMap.remove(malop);
+    }
+}
+
+void rebuildGlobalClassMap() {
+    g_classMap.clear();
+    dsLop* root = dsl.getRoot();
+    if (!root) return;
+    for (int i = 0; i < root->n; i++) {
+        if (root->dslop[i]) {
+            g_classMap.insert(root->dslop[i]->MALOP, root->dslop[i]);
+        }
+    }
+}
+
+Lop* findClassGlobal(const std::string& malop) {
+    Lop** loc = g_classMap.find(malop);
+    if (loc && *loc) {
+        return *loc;
+    }
+
+    std::cerr << "[WARN] findClassGlobal: map miss for malop=" << malop << ". Falling back to linear scan.\n";
+    Lop* found = dsl.find(malop);
+    if (found) {
+        g_classMap.insert(malop, found);
+    }
+    return found;
+}
+
 NodeMH* find_subject_smart(const std::string& mamh) {
     return dsmh.find(mamh.c_str());
 }
+

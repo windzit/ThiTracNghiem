@@ -34,6 +34,9 @@ int ServerBootstrap::run(int argc, char* argv[]) {
     LoadAllData(dsl, dsmh);
     std::cout << "[STARTUP LOG] [END] LoadAllData\n";
 
+    rebuildGlobalStudentMap();
+    rebuildGlobalClassMap();
+
     std::cout << "[STARTUP LOG] [BEGIN] loadSystemSettings\n";
     {
         bool loadedFs = false;
