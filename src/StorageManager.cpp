@@ -505,10 +505,6 @@ bool StorageManager::loadAllData(Class& dsl, Subject& dsmh) {
     StorageIntegrityChecker::auditStorageIntegrity(dsl, dsmh, cachedExamSessions);
     std::cout << "[STARTUP LOG] [END] StorageIntegrityChecker::auditStorageIntegrity\n";
 
-    std::cout << "[STARTUP LOG] [BEGIN] rebuildIndexes\n";
-    rebuildIndexes();
-    std::cout << "[STARTUP LOG] [END] rebuildIndexes\n";
-
     saveMetadata();
     std::cout << "[STARTUP LOG] [END] loadAllData\n";
     return true;
@@ -1046,27 +1042,6 @@ void StorageManager::rebuildUsedFlags(Subject& dsmh, Class* dsl) {
                 }
             }
         }
-    } else {
-        std::string scoresPath = PathResolver::getFilePath("scores.txt");
-        std::ifstream scFile(scoresPath);
-        if (scFile.is_open()) {
-            std::string line;
-            bool isHeader = true;
-            while (std::getline(scFile, line)) {
-                std::string trimmed = trim(line);
-                if (trimmed.empty()) continue;
-                if (isHeader) { isHeader = false; continue; }
-                DArray<std::string> tokens = split(trimmed, '|');
-                if (tokens.size() >= 2) {
-                    std::string mamh = trim(tokens[1]);
-                    NodeMH* node = dsmh.find(mamh.c_str());
-                    if (node) {
-                        node->data.used = true;
-                    }
-                }
-            }
-            scFile.close();
-        }
     }
 }
 
@@ -1593,8 +1568,8 @@ bool StorageManager::checkAndExecuteStartupCompaction() {
 // STORAGE COMPACTION ENGINE
 // ============================================================
 
-bool StorageManager::compactStudents() {
-    std::string filePath = PathResolver::getFilePath("students.txt");
+static bool compactEntityFile(const std::string& filename, size_t minTokens, size_t statusColIdx, const std::string& entityType, std::function<void()> rebuildIndexFunc) {
+    std::string filePath = PathResolver::getFilePath(filename);
     std::ifstream in(filePath, std::ios::in | std::ios::binary);
     if (!in.is_open()) return false;
 
@@ -1609,116 +1584,47 @@ bool StorageManager::compactStudents() {
             continue;
         }
         DArray<std::string> tokens = split(line, '|');
-        if (tokens.size() >= 7) {
-            std::string status = trim(tokens[6]);
-            if (status != "1") { // Preserve Active ('0') and Soft Deleted ('2')
+        if (tokens.size() >= minTokens) {
+            std::string status = trim(tokens[statusColIdx]);
+            if (status != "1") {
                 ss << line << "\n";
             }
         }
     }
     in.close();
 
-    if (!atomicWriteFile(filePath, ss.str())) return false;
-    IndexManager::getInstance().rebuildStudentIndex();
-    IndexManager::getInstance().saveStudentIndex();
-    resetDeletedCount("student");
+    if (!StorageManager::atomicWriteFile(filePath, ss.str())) return false;
+    if (rebuildIndexFunc) rebuildIndexFunc();
+    StorageManager::getInstance().resetDeletedCount(entityType);
     return true;
+}
+
+bool StorageManager::compactStudents() {
+    return compactEntityFile("students.txt", 7, 6, "student", []() {
+        IndexManager::getInstance().rebuildStudentIndex();
+        IndexManager::getInstance().saveStudentIndex();
+    });
 }
 
 bool StorageManager::compactQuestions() {
-    std::string filePath = PathResolver::getFilePath("questions.txt");
-    std::ifstream in(filePath, std::ios::in | std::ios::binary);
-    if (!in.is_open()) return false;
-
-    std::ostringstream ss;
-    std::string line;
-    bool isHeader = true;
-    while (std::getline(in, line)) {
-        if (line.empty()) continue;
-        if (isHeader) {
-            ss << line << "\n";
-            isHeader = false;
-            continue;
-        }
-        DArray<std::string> tokens = split(line, '|');
-        if (tokens.size() >= 9) {
-            std::string status = trim(tokens[8]);
-            if (status != "1") { // Drop Deleted Unused ('1'), Preserve Active ('0') and Soft Deleted Used ('2')
-                ss << line << "\n";
-            }
-        }
-    }
-    in.close();
-
-    if (!atomicWriteFile(filePath, ss.str())) return false;
-    IndexManager::getInstance().rebuildQuestionIndex();
-    IndexManager::getInstance().saveQuestionIndex();
-    resetDeletedCount("question");
-    return true;
+    return compactEntityFile("questions.txt", 9, 8, "question", []() {
+        IndexManager::getInstance().rebuildQuestionIndex();
+        IndexManager::getInstance().saveQuestionIndex();
+    });
 }
 
 bool StorageManager::compactSubjects() {
-    std::string filePath = PathResolver::getFilePath("subjects.txt");
-    std::ifstream in(filePath, std::ios::in | std::ios::binary);
-    if (!in.is_open()) return false;
-
-    std::ostringstream ss;
-    std::string line;
-    bool isHeader = true;
-    while (std::getline(in, line)) {
-        if (line.empty()) continue;
-        if (isHeader) {
-            ss << line << "\n";
-            isHeader = false;
-            continue;
-        }
-        DArray<std::string> tokens = split(line, '|');
-        if (tokens.size() >= 4) {
-            std::string status = trim(tokens[3]);
-            if (status != "1") {
-                ss << line << "\n";
-            }
-        }
-    }
-    in.close();
-
-    if (!atomicWriteFile(filePath, ss.str())) return false;
-    IndexManager::getInstance().rebuildSubjectIndex();
-    IndexManager::getInstance().saveSubjectIndex();
-    resetDeletedCount("subject");
-    return true;
+    return compactEntityFile("subjects.txt", 4, 3, "subject", []() {
+        IndexManager::getInstance().rebuildSubjectIndex();
+        IndexManager::getInstance().saveSubjectIndex();
+    });
 }
 
 bool StorageManager::compactClasses() {
-    std::string filePath = PathResolver::getFilePath("classes.txt");
-    std::ifstream in(filePath, std::ios::in | std::ios::binary);
-    if (!in.is_open()) return false;
-
-    std::ostringstream ss;
-    std::string line;
-    bool isHeader = true;
-    while (std::getline(in, line)) {
-        if (line.empty()) continue;
-        if (isHeader) {
-            ss << line << "\n";
-            isHeader = false;
-            continue;
-        }
-        DArray<std::string> tokens = split(line, '|');
-        if (tokens.size() >= 3) {
-            std::string status = trim(tokens[2]);
-            if (status != "1") {
-                ss << line << "\n";
-            }
-        }
-    }
-    in.close();
-
-    if (!atomicWriteFile(filePath, ss.str())) return false;
-    IndexManager::getInstance().rebuildClassIndex();
-    IndexManager::getInstance().saveClassIndex();
-    resetDeletedCount("class");
-    return true;
+    return compactEntityFile("classes.txt", 3, 2, "class", []() {
+        IndexManager::getInstance().rebuildClassIndex();
+        IndexManager::getInstance().saveClassIndex();
+    });
 }
 
 bool StorageManager::compactAll() {

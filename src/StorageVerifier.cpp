@@ -164,7 +164,7 @@ static void collectQuestionsFromRAM(NodeMH* node, DArray<const CauHoi*>& ramList
     collectQuestionsFromRAM(node->left, ramList, subjectCodes);
 
     const MonHoc& mh = node->data;
-    dsCHT* qNode = const_cast<MonHoc&>(mh).dsCauHoi.getRoot();
+    dsCHT* qNode = mh.dsCauHoi.getRoot();
     while (qNode) {
         ramList.push_back(&(qNode->cauhoi));
         subjectCodes.push_back(mh.MAMH);
@@ -215,7 +215,9 @@ bool StorageVerifier::verifyQuestions(Subject& dsmh, const std::string& filePath
         }
         if (ram.A != disk.A || ram.B != disk.B || ram.C != disk.C || ram.D != disk.D) {
             errReason = "Question options mismatch for ID: " + pk;
-            StorageValidator::logVerificationError("Question", pk, "OPTIONS", ram.A + "|" + ram.B, disk.A + "|" + disk.B, errReason);
+            std::string ramOpts = ram.A + "|" + ram.B + "|" + ram.C + "|" + ram.D;
+            std::string diskOpts = disk.A + "|" + disk.B + "|" + disk.C + "|" + disk.D;
+            StorageValidator::logVerificationError("Question", pk, "OPTIONS", ramOpts, diskOpts, errReason);
             return false;
         }
         if (std::toupper(ram.DAPAN_DUNG) != std::toupper(disk.DAPAN_DUNG)) {
@@ -253,7 +255,7 @@ bool StorageVerifier::verifyScores(Class& dsl, const std::string& filePath, std:
             dsSinhVien* curSV = lop->dssinhvien.getRoot();
             while (curSV) {
                 const SinhVien& sv = curSV->sinhvien;
-                dsDiemThi* curScore = const_cast<SinhVien&>(sv).dsdiemthi.getRoot();
+                dsDiemThi* curScore = sv.dsdiemthi.getRoot();
                 while (curScore) {
                     ramList.push_back(curScore->diemthi);
                     ramMasvList.push_back(sv.MASV);

@@ -67,20 +67,6 @@ SinhVien* findStudentGlobal(const std::string& masv, Lop** outLop) {
         if (outLop) *outLop = loc->lop;
         return loc->sv;
     }
-
-    // Fallback scan if map was not yet initialized or record was just loaded
-    std::cerr << "[WARN] findStudentGlobal: map miss for masv=" << masv << ". Falling back to linear scan.\n";
-    dsLop* root = dsl.getRoot();
-    if (!root) return nullptr;
-    for (int i = 0; i < root->n; i++) {
-        if (!root->dslop[i]) continue;
-        SinhVien* sv = root->dslop[i]->dssinhvien.find(masv);
-        if (sv) {
-            if (outLop) *outLop = root->dslop[i];
-            g_studentMap.insert(masv, StudentLocation{sv, root->dslop[i]});
-            return sv;
-        }
-    }
     return nullptr;
 }
 
@@ -111,16 +97,7 @@ void rebuildGlobalClassMap() {
 
 Lop* findClassGlobal(const std::string& malop) {
     Lop** loc = g_classMap.find(malop);
-    if (loc && *loc) {
-        return *loc;
-    }
-
-    std::cerr << "[WARN] findClassGlobal: map miss for malop=" << malop << ". Falling back to linear scan.\n";
-    Lop* found = dsl.find(malop);
-    if (found) {
-        g_classMap.insert(malop, found);
-    }
-    return found;
+    return (loc && *loc) ? *loc : nullptr;
 }
 
 NodeMH* find_subject_smart(const std::string& mamh) {

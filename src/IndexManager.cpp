@@ -153,10 +153,13 @@ bool IndexManager::rebuildQuestionIndex() {
             std::string status = trim(tokens[tokens.size() - 1]);
             if (status == "1") continue; // Skip STATUS_DELETED ('1')
 
-            std::string mamh = trim(tokens[0]);
-            std::string idStr = trim(tokens[1]);
-            if (idStr.empty() || !std::isdigit(static_cast<unsigned char>(idStr[0]))) {
-                idStr = trim(tokens[0]); // fallback if ID is first column
+            std::string mamh, idStr;
+            if (!tokens[1].empty() && std::isdigit(static_cast<unsigned char>(tokens[1][0]))) {
+                mamh = trim(tokens[0]);
+                idStr = trim(tokens[1]);
+            } else if (!tokens[0].empty() && std::isdigit(static_cast<unsigned char>(tokens[0][0]))) {
+                idStr = trim(tokens[0]);
+                mamh = tokens.size() >= 2 ? trim(tokens[1]) : "";
             }
             try {
                 int id = std::stoi(idStr);
@@ -164,8 +167,10 @@ bool IndexManager::rebuildQuestionIndex() {
                 if (!mamh.empty()) {
                     m_questionSubjectIndex.insert(id, mamh);
                 }
+            } catch (const std::exception& e) {
+                std::cerr << "[IndexManager] Warning: Failed to parse rebuildQuestionIndex line: '" << trimmed << "' (" << e.what() << ")" << std::endl;
             } catch (...) {
-                // Ignore non-numeric ID parse failures
+                std::cerr << "[IndexManager] Warning: Failed to parse rebuildQuestionIndex line: '" << trimmed << "'" << std::endl;
             }
         }
     }
@@ -322,15 +327,19 @@ bool IndexManager::rebuildHistoryIndex() {
 
 bool IndexManager::saveQuestionIndex() {
     std::ostringstream ss;
-    ss << "# QUESTION_ID|OFFSET\n";
-    m_questionIndex.forEach([&ss](int id, int64_t offset) {
-        ss << id << '|' << offset << "\n";
+    ss << "# QUESTION_ID|OFFSET|MAMH\n";
+    m_questionIndex.forEach([this, &ss](int id, int64_t offset) {
+        std::string mamh;
+        std::string* mamhPtr = m_questionSubjectIndex.find(id);
+        if (mamhPtr) mamh = *mamhPtr;
+        ss << id << '|' << offset << '|' << mamh << "\n";
     });
     return StorageManager::atomicWriteFile(PathResolver::getIndexPath("question.idx"), ss.str());
 }
 
 bool IndexManager::loadQuestionIndex() {
     m_questionIndex.clear();
+    m_questionSubjectIndex.clear();
     std::string indexPath = PathResolver::getIndexPath("question.idx");
     std::ifstream file(indexPath);
     if (!file.is_open()) {
@@ -338,6 +347,7 @@ bool IndexManager::loadQuestionIndex() {
     }
 
     std::string line;
+    bool validIndex = true;
     while (std::getline(file, line)) {
         std::string trimmed = trim(line);
         if (trimmed.empty() || trimmed[0] == '#') continue;
@@ -347,10 +357,34 @@ bool IndexManager::loadQuestionIndex() {
                 int id = std::stoi(trim(tokens[0]));
                 int64_t offset = std::stoll(trim(tokens[1]));
                 m_questionIndex.insert(id, offset);
-            } catch (...) {}
+                if (tokens.size() >= 3) {
+                    std::string mamh = trim(tokens[2]);
+                    if (!mamh.empty()) {
+                        m_questionSubjectIndex.insert(id, mamh);
+                    }
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "[IndexManager] Warning: Failed to parse question.idx line: '" << trimmed << "' (" << e.what() << ")" << std::endl;
+                validIndex = false;
+            } catch (...) {
+                std::cerr << "[IndexManager] Warning: Failed to parse question.idx line: '" << trimmed << "'" << std::endl;
+                validIndex = false;
+            }
         }
     }
     file.close();
+
+    // If question.idx is missing 3rd column MAMH mapping (legacy 2-column index) or had parse errors, trigger rebuild
+    if (m_questionSubjectIndex.empty() && !m_questionIndex.empty()) {
+        std::cout << "  [*] Question Index  : Upgrade 2-column -> 3-column index (SCHEMA 2.0)...\n";
+        return rebuildQuestionIndex() && saveQuestionIndex();
+    }
+
+    if (!validIndex) {
+        std::cout << "  [*] Question Index  : Parse warning -> Rebuilding question.idx...\n";
+        return rebuildQuestionIndex() && saveQuestionIndex();
+    }
+
     return true;
 }
 

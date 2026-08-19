@@ -210,6 +210,11 @@ bool StorageValidator::validateQuestion(const CauHoi& q, const std::string& mamh
         logValidationError("Question", pk, "NOIDUNG", q.NOIDUNG, errReason);
         return false;
     }
+    if (q.NOIDUNG.length() > 300) {
+        errReason = "Question NOIDUNG exceeds max length limit of 300 chars for ID: " + pk;
+        logValidationError("Question", pk, "NOIDUNG", q.NOIDUNG, errReason);
+        return false;
+    }
     if (containsForbiddenChars(q.NOIDUNG, charReason)) {
         errReason = "Question NOIDUNG " + charReason + " for ID: " + pk;
         logValidationError("Question", pk, "NOIDUNG", q.NOIDUNG, errReason);
@@ -218,6 +223,11 @@ bool StorageValidator::validateQuestion(const CauHoi& q, const std::string& mamh
     if (isEmptyOrWhitespace(q.A) || isEmptyOrWhitespace(q.B) ||
         isEmptyOrWhitespace(q.C) || isEmptyOrWhitespace(q.D)) {
         errReason = "One or more question options (A,B,C,D) are empty for ID: " + pk;
+        logValidationError("Question", pk, "A/B/C/D", q.A + " | " + q.B, errReason);
+        return false;
+    }
+    if (q.A.length() > 100 || q.B.length() > 100 || q.C.length() > 100 || q.D.length() > 100) {
+        errReason = "One or more question options exceed max length limit of 100 chars for ID: " + pk;
         logValidationError("Question", pk, "A/B/C/D", q.A + " | " + q.B, errReason);
         return false;
     }
@@ -326,7 +336,7 @@ bool StorageValidator::validateExamSession(const ExamSession& session, std::stri
             logValidationError("ExamSession", session.MASV, "questionIds", std::to_string(session.questionIds[i]), errReason);
             return false;
         }
-    }
+    }                           
     if (session.tongThoiGianPhut <= 0) {
         errReason = "ExamSession total duration in minutes must be positive. Got: " + std::to_string(session.tongThoiGianPhut);
         logValidationError("ExamSession", session.MASV, "tongThoiGianPhut", std::to_string(session.tongThoiGianPhut), errReason);

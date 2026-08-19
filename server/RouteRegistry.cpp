@@ -30,7 +30,7 @@ static httplib::Server::Handler wrap_safe(HandlerFunc handler) {
 
 void registerRoutes(httplib::Server& svr) {
     svr.set_default_headers({
-        {"Access-Control-Allow-Origin", "http://localhost:5173"},
+        {"Access-Control-Allow-Origin", "*"},
         {"Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS"},
         {"Access-Control-Allow-Headers", "Content-Type, Authorization"}
     });

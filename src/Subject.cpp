@@ -1,4 +1,3 @@
-#pragma once
 #include "Subject.h"
 #include "StorageManager.h"
 
@@ -67,7 +66,7 @@ bool Subject::insert(const MonHoc& monhoc) {
 // xoa phai thoa : => ton tai mon , cau hoi thi chua dc dung
 // xoa mon => giai phong ds cau hoi thi
 
-NodeMH* findMinNode(NodeMH* node) {
+static NodeMH* findMinNode(NodeMH* node) {
     if (node == nullptr) return nullptr;
     while (node && node->left != nullptr) {
         node = node->left;
@@ -110,21 +109,21 @@ bool Subject::_remove(NodeMH*& node, const char MAMH[16]) {
         return true;
     }
 
-    // transplant 
+    // 3. Node with 2 children: Find in-order successor (min node in right subtree)
     NodeMH* succ = findMinNode(node->right);
     char succMAMH[16] = {0};
-    strncpy(succMAMH, succ->data.MAMH, 15);
+    strncpy(succMAMH, succ->data.MAMH, sizeof(succMAMH) - 1);
 
-    // Copy succ scalar fields to node
-    strncpy(node->data.MAMH, succ->data.MAMH, 15);
-    node->data.MAMH[15] = '\0';
+    // Copy scalar fields from successor to current node
+    strncpy(node->data.MAMH, succ->data.MAMH, sizeof(node->data.MAMH) - 1);
+    node->data.MAMH[sizeof(node->data.MAMH) - 1] = '\0';
     node->data.TENMH = succ->data.TENMH;
     node->data.used = succ->data.used;
-    // Swap question list contents safely
-    Question tmpQ = node->data.dsCauHoi;
-    node->data.dsCauHoi = succ->data.dsCauHoi;
-    succ->data.dsCauHoi = tmpQ;
 
+    // Swap question list pointer contents safely in O(1) time
+    node->data.dsCauHoi.swap(succ->data.dsCauHoi);
+
+    // Recursively delete successor from right subtree
     return _remove(node->right, succMAMH);
 }
 
@@ -135,20 +134,7 @@ bool Subject::remove(const char MAMH[16]) {
 bool Subject::update(const char MAMH[16], const std::string& newTENMH) {
     NodeMH* node = find(MAMH);
     if (!node) return false;
-    
-    // Save old value for rollback
-    std::string oldTENMH = node->data.TENMH;
-    
-    // Update in memory
     node->data.TENMH = newTENMH;
-    
-    // Persist to storage
-    if (!save()) {
-        // Rollback on failure
-        node->data.TENMH = oldTENMH;
-        return false;
-    }
-    
     return true;
 }
 

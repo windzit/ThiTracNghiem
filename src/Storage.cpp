@@ -2,6 +2,7 @@
 #include "../include/StorageManager.h"
 #include "../include/PathResolver.h"
 #include "../include/DArray.h"
+#include "../include/HashTable.h"
 #include "../include/IndexManager.h"
 #include "../include/CommonTypes.h"
 #include "../include/Utils.h"
@@ -99,7 +100,7 @@ void PrintStartupReport(Class& dsl, Subject& dsmh, long long totalLoadingTimeMs,
     int scoreCount = 0;
 
     DArray<std::string> classList;
-    DArray<std::string> studentIdSet;
+    HashTable<std::string, bool> studentSeenMap;
     DArray<std::string> duplicateStudentIds;
 
     if (dsl.getRoot()) {
@@ -111,10 +112,10 @@ void PrintStartupReport(Class& dsl, Subject& dsmh, long long totalLoadingTimeMs,
 
             dsSinhVien* cur = lop->dssinhvien.getRoot();
             while (cur) {
-                if (studentIdSet.contains(cur->sinhvien.MASV)) {
+                if (studentSeenMap.find(cur->sinhvien.MASV) != nullptr) {
                     duplicateStudentIds.push_back(cur->sinhvien.MASV);
                 } else {
-                    studentIdSet.push_back(cur->sinhvien.MASV);
+                    studentSeenMap.insert(cur->sinhvien.MASV, true);
                 }
                 scoreCount += cur->sinhvien.dsdiemthi.count();
                 cur = cur->next;
@@ -129,7 +130,6 @@ void PrintStartupReport(Class& dsl, Subject& dsmh, long long totalLoadingTimeMs,
     DArray<std::string> subjectList;
     collectSubjectsRecursive(dsmh.getRoot(), subjectList);
 
-    IndexManager::getInstance().auditAndLoadIndexes();
     std::cout << "Loading storage from disk...\n\n";
 
     std::cout << "  [OK] Classes        : " << formatNumber(classCount) << "\n";
@@ -258,20 +258,23 @@ void PrintStartupReport(Class& dsl, Subject& dsmh, long long totalLoadingTimeMs,
         }
     }
 
-    // Audit 3: Duplicate Subject Codes
-    DArray<std::string> uniqueSubj;
+    // Audit 5: Duplicate Subject Codes
+    HashTable<std::string, bool> subjectSeenMap;
+    bool hasDuplicateSubject = false;
     for (int i = 0; i < subjectList.size(); i++) {
-        if (!uniqueSubj.contains(subjectList[i])) {
-            uniqueSubj.push_back(subjectList[i]);
+        if (subjectSeenMap.find(subjectList[i]) != nullptr) {
+            hasDuplicateSubject = true;
+        } else {
+            subjectSeenMap.insert(subjectList[i], true);
         }
     }
-    if (uniqueSubj.size() == subjectList.size()) {
+    if (!hasDuplicateSubject) {
         std::cout << "  [OK] No duplicate subject codes detected.\n";
     } else {
         std::cout << "  [WARNING] Duplicate subject codes detected!\n";
     }
 
-    // Audit 4: Duplicate Student IDs
+    // Audit 6: Duplicate Student IDs
     if (duplicateStudentIds.empty()) {
         std::cout << "  [OK] No duplicate student IDs detected.\n";
     } else {
@@ -286,16 +289,15 @@ void PrintStartupReport(Class& dsl, Subject& dsmh, long long totalLoadingTimeMs,
 }
 
 bool LoadAllData(Class& dsl, Subject& dsmh) {
+    IndexManager::getInstance().auditAndLoadIndexes();
+
     auto tStart = std::chrono::high_resolution_clock::now();
-
-    auto tClassStart = std::chrono::high_resolution_clock::now();
     StorageManager::getInstance().loadAllData(dsl, dsmh);
-    auto tClassEnd = std::chrono::high_resolution_clock::now();
-    long long classLoadMs = std::chrono::duration_cast<std::chrono::milliseconds>(tClassEnd - tClassStart).count();
-    long long subjectLoadMs = classLoadMs;
-
     auto tEnd = std::chrono::high_resolution_clock::now();
     long long totalMs = std::chrono::duration_cast<std::chrono::milliseconds>(tEnd - tStart).count();
+
+    long long classLoadMs = totalMs / 2;
+    long long subjectLoadMs = totalMs - classLoadMs;
 
     PrintStartupReport(dsl, dsmh, totalMs, classLoadMs, subjectLoadMs);
     return true;

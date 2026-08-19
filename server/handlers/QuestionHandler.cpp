@@ -245,6 +245,7 @@ void handle_bulk_delete_questions(const httplib::Request& req, httplib::Response
                     if (hasOffset) {
                         StorageManager::getInstance().markQuestionStatusAt(offset, STATUS_DELETED);
                         IndexManager::getInstance().removeQuestionOffset(id);
+                        IndexManager::getInstance().removeQuestionSubject(id);
                     }
                     hardDeletedCount++;
                     affectedSubjects.insert(mamh);

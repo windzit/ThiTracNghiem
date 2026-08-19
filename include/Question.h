@@ -48,6 +48,7 @@ public:
 
     bool save(const char* MAMH);
     bool load(const char* MAMH);
+    void swap(Question& other);
     dsCHT* getRoot() const { return root; }
     dsCHT* getTail() const { return tail; }
 private:

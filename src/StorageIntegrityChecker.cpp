@@ -1,5 +1,6 @@
 #include "../include/StorageIntegrityChecker.h"
 #include "../include/StorageValidator.h"
+#include "../include/IndexManager.h"
 #include "../include/Utils.h"
 #include <iostream>
 
@@ -12,24 +13,23 @@ static void logIntegrityWarning(const std::string& relation, const std::string& 
               << std::endl;
 }
 
+static bool isStudentInRAM(dsLop* rootLop, const std::string& masv) {
+    int64_t dummyOffset = -1;
+    if (IndexManager::getInstance().getStudentOffset(masv, dummyOffset)) return true;
+    if (!rootLop) return false;
+    for (int k = 0; k < rootLop->n; k++) {
+        if (rootLop->dslop[k] && rootLop->dslop[k]->dssinhvien.find(masv)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool StorageIntegrityChecker::auditStorageIntegrity(Class& dsl, Subject& dsmh, const DArray<ExamSession>& sessions) {
     int warningsCount = 0;
     dsLop* rootLop = dsl.getRoot();
 
-    // 1. Audit Students -> Class
-    if (rootLop) {
-        for (int i = 0; i < rootLop->n; i++) {
-            Lop* lop = rootLop->dslop[i];
-            if (!lop) continue;
-            std::string classCode = trim(lop->MALOP);
-            if (!dsl.find(classCode)) {
-                warningsCount++;
-                logIntegrityWarning("Student -> Class", "MALOP: " + classCode, "Class: " + classCode);
-            }
-        }
-    }
-
-    // 2. Audit Scores -> Student & Subject
+    // 1. Audit Scores -> Subject
     if (rootLop) {
         for (int i = 0; i < rootLop->n; i++) {
             Lop* lop = rootLop->dslop[i];
@@ -37,7 +37,7 @@ bool StorageIntegrityChecker::auditStorageIntegrity(Class& dsl, Subject& dsmh, c
             dsSinhVien* curSV = lop->dssinhvien.getRoot();
             while (curSV) {
                 const SinhVien& sv = curSV->sinhvien;
-                dsDiemThi* curScore = const_cast<SinhVien&>(sv).dsdiemthi.getRoot();
+                dsDiemThi* curScore = sv.dsdiemthi.getRoot();
                 while (curScore) {
                     const DiemThi& dt = curScore->diemthi;
                     std::string mamh = trim(dt.MAMH);
@@ -52,7 +52,7 @@ bool StorageIntegrityChecker::auditStorageIntegrity(Class& dsl, Subject& dsmh, c
         }
     }
 
-    // 3. Audit Active Exam Sessions -> Student & Subject
+    // 2. Audit Active Exam Sessions -> Student & Subject
     for (int i = 0; i < sessions.size(); i++) {
         const auto& sess = sessions[i];
         if (!sess.in_progress) continue;
@@ -60,15 +60,7 @@ bool StorageIntegrityChecker::auditStorageIntegrity(Class& dsl, Subject& dsmh, c
         std::string masv = trim(sess.MASV);
         std::string mamh = trim(sess.MAMH);
 
-        bool studentFound = false;
-        if (rootLop) {
-            for (int k = 0; k < rootLop->n && !studentFound; k++) {
-                if (rootLop->dslop[k] && rootLop->dslop[k]->dssinhvien.find(masv)) {
-                    studentFound = true;
-                }
-            }
-        }
-        if (!studentFound) {
+        if (!isStudentInRAM(rootLop, masv)) {
             warningsCount++;
             logIntegrityWarning("ExamSession -> Student", "Active MASV: " + masv, "Student: " + masv);
         }

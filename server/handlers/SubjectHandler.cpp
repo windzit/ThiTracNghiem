@@ -59,7 +59,8 @@ void handle_create_subject(const httplib::Request& req, httplib::Response& res) 
         error_response(res, "Subject already exists", 409); return;
     }
     MonHoc mh;
-    strcpy(mh.MAMH, mamh.c_str());
+    strncpy(mh.MAMH, mamh.c_str(), sizeof(mh.MAMH) - 1);
+    mh.MAMH[sizeof(mh.MAMH) - 1] = '\0';
     mh.TENMH = tenmh;
     mh.used = false;
     StringNormalizer::normalizeSubject(mh);
@@ -94,7 +95,8 @@ void handle_update_subject(const httplib::Request& req, httplib::Response& res) 
         error_response(res, "Subject not found", 404); return;
     }
     MonHoc candidateMh;
-    strcpy(candidateMh.MAMH, mamh.c_str());
+    strncpy(candidateMh.MAMH, mamh.c_str(), sizeof(candidateMh.MAMH) - 1);
+    candidateMh.MAMH[sizeof(candidateMh.MAMH) - 1] = '\0';
     candidateMh.TENMH = tenmh;
     StringNormalizer::normalizeSubject(candidateMh);
 
@@ -135,20 +137,27 @@ void handle_delete_subject(const httplib::Request& req, httplib::Response& res) 
     int64_t offset = -1;
     bool hasOffset = IndexManager::getInstance().getSubjectOffset(mamh, offset);
 
-    // Mark questions of this subject as STATUS_DELETED in questions.txt and update question.idx
+    // Save questions list pointers before node removal
+    DArray<int> questionIds;
     for (dsCHT* qNode = node->data.dsCauHoi.getRoot(); qNode; qNode = qNode->next) {
-        int qId = qNode->cauhoi.ID;
-        int64_t qOffset = -1;
-        if (IndexManager::getInstance().getQuestionOffset(qId, qOffset)) {
-            StorageManager::getInstance().markQuestionStatusAt(qOffset, STATUS_DELETED);
-            IndexManager::getInstance().removeQuestionOffset(qId);
-        }
+        questionIds.push_back(qNode->cauhoi.ID);
     }
 
+    // Perform RAM removal FIRST for transaction atomicity
     if (dsmh.remove(mamh.c_str())) {
         if (hasOffset) {
             StorageManager::getInstance().markSubjectStatusAt(offset, STATUS_DELETED);
             IndexManager::getInstance().removeSubjectOffset(mamh);
+        }
+        // Mark questions of this subject as STATUS_DELETED in questions.txt and clean up indexes
+        for (size_t i = 0; i < questionIds.size(); i++) {
+            int qId = questionIds[i];
+            int64_t qOffset = -1;
+            if (IndexManager::getInstance().getQuestionOffset(qId, qOffset)) {
+                StorageManager::getInstance().markQuestionStatusAt(qOffset, STATUS_DELETED);
+                IndexManager::getInstance().removeQuestionOffset(qId);
+                IndexManager::getInstance().removeQuestionSubject(qId);
+            }
         }
         res.status = 204;
     } else {

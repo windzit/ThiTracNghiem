@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <cstdint>
+#include <functional>
 
 template <typename K, typename V>
 struct HashNode {
@@ -69,7 +70,7 @@ public:
     }
 
     V* find(const K& key) {
-        size_t idx = hashKey(key) % m_capacity;
+        size_t idx = computeHash(key) % m_capacity;
         HashNode<K, V>* cur = m_buckets[idx];
         while (cur) {
             if (cur->key == key) {
@@ -81,7 +82,7 @@ public:
     }
 
     const V* find(const K& key) const {
-        size_t idx = hashKey(key) % m_capacity;
+        size_t idx = computeHash(key) % m_capacity;
         HashNode<K, V>* cur = m_buckets[idx];
         while (cur) {
             if (cur->key == key) {
@@ -93,7 +94,7 @@ public:
     }
 
     bool insert(const K& key, const V& value) {
-        size_t idx = hashKey(key) % m_capacity;
+        size_t idx = computeHash(key) % m_capacity;
         HashNode<K, V>* cur = m_buckets[idx];
         while (cur) {
             if (cur->key == key) {
@@ -110,7 +111,7 @@ public:
     }
 
     bool remove(const K& key) {
-        size_t idx = hashKey(key) % m_capacity;
+        size_t idx = computeHash(key) % m_capacity;
         HashNode<K, V>* cur = m_buckets[idx];
         HashNode<K, V>* prev = nullptr;
 
@@ -131,11 +132,21 @@ public:
         return false;
     }
 
+    // Tối ưu: 1 lượt duyệt duy nhất O(1)
     V& operator[](const K& key) {
-        V* ptr = find(key);
-        if (ptr) return *ptr;
-        insert(key, V());
-        return *find(key);
+        size_t idx = computeHash(key) % m_capacity;
+        HashNode<K, V>* cur = m_buckets[idx];
+        while (cur) {
+            if (cur->key == key) {
+                return cur->value;
+            }
+            cur = cur->next;
+        }
+        HashNode<K, V>* newNode = new HashNode<K, V>(key, V());
+        newNode->next = m_buckets[idx];
+        m_buckets[idx] = newNode;
+        m_size++;
+        return newNode->value;
     }
 
     template <typename Function>
@@ -150,21 +161,41 @@ public:
     }
 
 private:
+    // 1. Băm cho kiểu số nguyên (int, int64_t, uint64_t...)
     size_t hashKey(int key) const {
-        uint64_t x = static_cast<uint64_t>(key);
+        uint64_t x = static_cast<uint64_t>(static_cast<uint32_t>(key));
         x = ((x >> 16) ^ x) * 0x45d9f3bULL;
         x = ((x >> 16) ^ x) * 0x45d9f3bULL;
         x = (x >> 16) ^ x;
         return static_cast<size_t>(x);
     }
 
+    size_t hashKey(int64_t key) const {
+        uint64_t x = static_cast<uint64_t>(key);
+        x = ((x >> 32) ^ x) * 0xd6e8feb86659fd93ULL;
+        x = ((x >> 32) ^ x) * 0xd6e8feb86659fd93ULL;
+        x = (x >> 32) ^ x;
+        return static_cast<size_t>(x);
+    }
+
+    // 2. Băm FNV-1a cho std::string
     size_t hashKey(const std::string& key) const {
         uint64_t hash = 14695981039346656037ULL;
         for (char c : key) {
-            hash ^= static_cast<uint64_t>(c);
+            hash ^= static_cast<uint64_t>(static_cast<unsigned char>(c));
             hash *= 1099511628211ULL;
         }
         return static_cast<size_t>(hash);
+    }
+
+    // 3. Fallback cho các kiểu dữ liệu khác
+    template <typename T>
+    size_t hashKey(const T& key) const {
+        return std::hash<T>{}(key);
+    }
+
+    size_t computeHash(const K& key) const {
+        return hashKey(key);
     }
 
     void copyFrom(const HashTable& other) {

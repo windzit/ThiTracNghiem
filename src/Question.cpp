@@ -41,23 +41,53 @@ void Question::clear() {
   tail = nullptr;
 }
 
+void Question::swap(Question& other) {
+  dsCHT *tmpRoot = root;
+  dsCHT *tmpTail = tail;
+  root = other.root;
+  tail = other.tail;
+  other.root = tmpRoot;
+  other.tail = tmpTail;
+}
+
 bool Question::insert(CauHoi &cauhoi, bool autoId) {
   if (autoId) {
     cauhoi.ID = StorageManager::getInstance().getNextQuestionID();
   }
-  // 1. Danh sách rỗng: Nút mới vừa là root vừa là tail
+  // 1. Empty list: new node is both root and tail
   if (!root) {
     root = tail = new dsCHT(cauhoi);
     return true;
   }
-  // 2. Chèn vào cuối danh sách (ID lớn hơn tail) - Luôn O(1)
+  // 2. Fast append to tail (ID > tail) - O(1)
   if (cauhoi.ID > tail->cauhoi.ID) {
     tail->next = new dsCHT(cauhoi);
     tail = tail->next;
     return true;
   }
-  // ID nhỏ hơn hoặc bằng tail (bị trùng hoặc sai thứ tự) -> Từ chối
-  return false;
+  // 3. Prepend to head (ID < root)
+  if (cauhoi.ID < root->cauhoi.ID) {
+    dsCHT *newNode = new dsCHT(cauhoi);
+    newNode->next = root;
+    root = newNode;
+    return true;
+  }
+  // 4. Duplicate check
+  if (cauhoi.ID == root->cauhoi.ID || cauhoi.ID == tail->cauhoi.ID) {
+    return false;
+  }
+  // 5. Sorted middle insertion for out-of-order IDs
+  dsCHT *cur = root;
+  while (cur->next && cur->next->cauhoi.ID < cauhoi.ID) {
+    cur = cur->next;
+  }
+  if (cur->next && cur->next->cauhoi.ID == cauhoi.ID) {
+    return false; // Reject duplicate ID
+  }
+  dsCHT *newNode = new dsCHT(cauhoi);
+  newNode->next = cur->next;
+  cur->next = newNode;
+  return true;
 }
 
 bool Question::removeNode(int ID) {
@@ -153,12 +183,15 @@ dsCHT *Question::find(int ID) {
   return nullptr;
 }
 
+// Note: File I/O persistence and loading for questions are fully managed by StorageManager.
+// These methods trigger dirty state notifications for batch persistence.
 bool Question::save(const char *MAMH) {
   StorageManager::getInstance().markDirty();
   StorageManager::getInstance().incrementOpCount();
   return true;
 }
 
+// Note: Loaded directly into RAM data structures via StorageManager::loadQuestions.
 bool Question::load(const char *MAMH) { return true; }
 
 int Question::size() const {
