@@ -34,6 +34,7 @@ public:
     bool appendScore(const std::string& masv, const std::string& mamh, float diem);
 
     bool loadExamSessions(DArray<ExamSession>& sessions);
+    const DArray<ExamSession>& getCachedExamSessions() const;
     bool saveExamSession(const ExamSession& session);
     bool removeExamSession(const std::string& masv);
     bool appendExamHistory(const ExamSession& session, float diem);

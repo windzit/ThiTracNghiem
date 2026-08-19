@@ -78,20 +78,7 @@ bool Class::remove(const std::string& MALOP) {
 bool Class::update(const std::string& MALOP, const std::string& newTENLOP) {
     Lop* lop = find(MALOP);
     if (!lop) return false;
-    
-    // Save old value for rollback
-    std::string oldTENLOP = lop->TENLOP;
-    
-    // Update in memory
     lop->TENLOP = newTENLOP;
-    
-    // Persist to storage
-    if (!save()) {
-        // Rollback on failure
-        lop->TENLOP = oldTENLOP;
-        return false;
-    }
-    
     return true;
 }
 

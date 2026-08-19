@@ -126,6 +126,24 @@ dsDiemThi* Score::find(const char* MAMH) {
 	return nullptr;
 }
 
+const dsDiemThi* Score::find(const char* MAMH) const {
+	if (!root || !MAMH)
+		return nullptr;
+
+	const dsDiemThi* cur = root;
+	while (cur) {
+		int cmp = strcmp(cur->diemthi.MAMH, MAMH);
+		if (cmp == 0)
+			return cur;
+		if (cmp > 0)
+			return nullptr;
+
+		cur = cur->next;
+	}
+
+	return nullptr;
+}
+
 int Score::count() const {
     int cnt = 0;
     dsDiemThi* cur = root;

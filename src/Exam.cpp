@@ -18,11 +18,10 @@ bool saveExamSession(const ExamSession& session) {
 
 bool loadExamSession(const std::string& MASV, ExamSession& session) {
     if (MASV.empty()) return false;
-    DArray<ExamSession> sessions;
-    if (!StorageManager::getInstance().loadExamSessions(sessions)) return false;
-    for (const auto& s : sessions) {
-        if (s.MASV == MASV && s.in_progress) {
-            session = s;
+    const DArray<ExamSession>& cached = StorageManager::getInstance().getCachedExamSessions();
+    for (int i = 0; i < cached.size(); i++) {
+        if (cached[i].MASV == MASV && cached[i].in_progress) {
+            session = cached[i];
             return true;
         }
     }

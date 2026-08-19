@@ -413,6 +413,10 @@ bool StorageManager::loadExamSessions(DArray<ExamSession>& sessions) {
     return true;
 }
 
+const DArray<ExamSession>& StorageManager::getCachedExamSessions() const {
+    return cachedExamSessions;
+}
+
 int StorageManager::getActiveSessionCount() const {
     return (int)cachedExamSessions.size();
 }

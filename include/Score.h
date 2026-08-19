@@ -30,6 +30,7 @@ public:
     bool insert(const DiemThi& DIEMTHI);
     bool remove(const char* MAMH);
     dsDiemThi* find(const char* MAMH);
+    const dsDiemThi* find(const char* MAMH) const;
     
     bool save(const std::string& MASV);
     bool load(const std::string& MASV);
