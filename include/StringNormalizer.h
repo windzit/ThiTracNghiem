@@ -21,6 +21,4 @@ public:
     static void normalizeStudent(SinhVien& sv);
     static void normalizeSubject(MonHoc& mh);
     static void normalizeQuestion(CauHoi& q);
-    static void normalizeScore(DiemThi& dt, std::string& masv);
-    static void normalizeExamSession(ExamSession& session);
 };

@@ -102,15 +102,3 @@ void StringNormalizer::normalizeQuestion(CauHoi& q) {
     q.C = normalizeHumanText(q.C);
     q.D = normalizeHumanText(q.D);
 }
-
-void StringNormalizer::normalizeScore(DiemThi& dt, std::string& masv) {
-    masv = trim(masv);
-    std::string mamh = trim(dt.MAMH);
-    std::strncpy(dt.MAMH, mamh.c_str(), sizeof(dt.MAMH) - 1);
-    dt.MAMH[sizeof(dt.MAMH) - 1] = '\0';
-}
-
-void StringNormalizer::normalizeExamSession(ExamSession& session) {
-    session.MASV = trim(session.MASV);
-    session.MAMH = trim(session.MAMH);
-}

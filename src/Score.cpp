@@ -159,8 +159,6 @@ bool Score::empty() const {
 }
 
 bool Score::save(const std::string& MASV) {
-    StorageManager::getInstance().markDirty();
-    StorageManager::getInstance().incrementOpCount();
     return true;
 }
 

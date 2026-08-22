@@ -1,6 +1,5 @@
 #pragma once
 #include "CommonTypes.h"
-extern std::string PATH_FOLDER_QUESTIONS;
 
 struct CauHoi {
     int ID;
@@ -22,12 +21,11 @@ struct dsCHT {
         next = nullptr;
         this->cauhoi = cauhoi;
     }
-
 };
 
 class Question {
 public:
-    Question() : root(nullptr), tail(nullptr) {};
+    Question() : root(nullptr), tail(nullptr), listSize(0) {};
 
     Question(const Question& other);
 
@@ -44,16 +42,14 @@ public:
     bool update(int ID, const CauHoi& newData);
     dsCHT* find(int ID);
     bool hasUsedQuestions() const;
-    int size() const;
-
-    bool save(const char* MAMH);
-    bool load(const char* MAMH);
+    int size() const { return listSize; }
     void swap(Question& other);
     dsCHT* getRoot() const { return root; }
     dsCHT* getTail() const { return tail; }
 private:
     dsCHT* root;
     dsCHT* tail;
+    int listSize = 0;
 
     void clear();
-};
+};

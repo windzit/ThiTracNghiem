@@ -1,10 +1,10 @@
 #include "../include/Question.h"
 #include "../include/StorageManager.h"
-#include "../include/Utils.h"
 
 Question::Question(const Question &other) {
   root = nullptr;
   tail = nullptr;
+  listSize = 0;
 
   dsCHT *p = other.root;
 
@@ -21,6 +21,7 @@ Question &Question::operator=(const Question &other) {
   clear();
   root = nullptr;
   tail = nullptr;
+  listSize = 0;
 
   dsCHT *p = other.root;
 
@@ -39,56 +40,43 @@ void Question::clear() {
     delete tmp;
   }
   tail = nullptr;
+  listSize = 0;
 }
 
 void Question::swap(Question& other) {
   dsCHT *tmpRoot = root;
   dsCHT *tmpTail = tail;
+  int tmpSize = listSize;
+
   root = other.root;
   tail = other.tail;
+  listSize = other.listSize;
+
   other.root = tmpRoot;
   other.tail = tmpTail;
+  other.listSize = tmpSize;
 }
 
 bool Question::insert(CauHoi &cauhoi, bool autoId) {
-  if (autoId) {
-    cauhoi.ID = StorageManager::getInstance().getNextQuestionID();
-  }
-  // 1. Empty list: new node is both root and tail
-  if (!root) {
-    root = tail = new dsCHT(cauhoi);
-    return true;
-  }
-  // 2. Fast append to tail (ID > tail) - O(1)
-  if (cauhoi.ID > tail->cauhoi.ID) {
-    tail->next = new dsCHT(cauhoi);
-    tail = tail->next;
-    return true;
-  }
-  // 3. Prepend to head (ID < root)
-  if (cauhoi.ID < root->cauhoi.ID) {
-    dsCHT *newNode = new dsCHT(cauhoi);
-    newNode->next = root;
-    root = newNode;
-    return true;
-  }
-  // 4. Duplicate check
-  if (cauhoi.ID == root->cauhoi.ID || cauhoi.ID == tail->cauhoi.ID) {
-    return false;
-  }
-  // 5. Sorted middle insertion for out-of-order IDs
-  dsCHT *cur = root;
-  while (cur->next && cur->next->cauhoi.ID < cauhoi.ID) {
-    cur = cur->next;
-  }
-  if (cur->next && cur->next->cauhoi.ID == cauhoi.ID) {
-    return false; // Reject duplicate ID
-  }
-  dsCHT *newNode = new dsCHT(cauhoi);
-  newNode->next = cur->next;
-  cur->next = newNode;
-  return true;
+    if (autoId) {
+        cauhoi.ID = StorageManager::getInstance().getNextQuestionID();
+    }
+    // 1. Danh sách rỗng: node mới vừa là root vừa là tail
+    if (!root) {
+        root = tail = new dsCHT(cauhoi);
+        listSize++;
+        return true;
+    }
+    // 2. Chèn vào đuôi O(1) (Do ID trong hệ thống luôn tăng dần tuyệt đối)
+    if (cauhoi.ID > tail->cauhoi.ID) {
+        tail->next = new dsCHT(cauhoi);
+        tail = tail->next;
+        listSize++;
+        return true;
+    }
+    return false; // Từ chối nếu ID <= tail->ID (trùng lặp hoặc sai thứ tự)
 }
+
 
 bool Question::removeNode(int ID) {
   // Physical removal (hard delete) — no used check, no soft delete
@@ -101,6 +89,7 @@ bool Question::removeNode(int ID) {
     if (!root)
       tail = nullptr;
     delete temp;
+    listSize--;
     return true;
   }
 
@@ -123,6 +112,7 @@ bool Question::removeNode(int ID) {
     tail = pre;
   }
   delete temp;
+  listSize--;
   return true;
 }
 
@@ -181,25 +171,4 @@ dsCHT *Question::find(int ID) {
     return ptr;
 
   return nullptr;
-}
-
-// Note: File I/O persistence and loading for questions are fully managed by StorageManager.
-// These methods trigger dirty state notifications for batch persistence.
-bool Question::save(const char *MAMH) {
-  StorageManager::getInstance().markDirty();
-  StorageManager::getInstance().incrementOpCount();
-  return true;
-}
-
-// Note: Loaded directly into RAM data structures via StorageManager::loadQuestions.
-bool Question::load(const char *MAMH) { return true; }
-
-int Question::size() const {
-  int count = 0;
-  dsCHT *p = root;
-  while (p) {
-    count++;
-    p = p->next;
-  }
-  return count;
 }

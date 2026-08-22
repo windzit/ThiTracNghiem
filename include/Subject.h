@@ -1,11 +1,6 @@
 #pragma once
 #include "Question.h"
-#include "DArray.h"
-#include <cmath>
-
-using namespace std;
-
-
+#include <string>
 
 struct MonHoc {
     char MAMH[16] = {0};
@@ -24,7 +19,6 @@ struct NodeMH {
     }
 };
 
-
 class Subject {
 public:
     Subject() : root(nullptr) {};
@@ -42,9 +36,6 @@ public:
     bool update(const char MAMH[16], const std::string& newTENMH);
     NodeMH* find(const char MAMH[16]);
 
-    bool save();
-    bool load();
-
     NodeMH* getRoot() const { return root; }
     int size() const { return treeSize; }
 private:
@@ -52,7 +43,6 @@ private:
     int treeSize = 0;
     void clear(NodeMH*& node);
     bool _insert(NodeMH*& node, const MonHoc& monhoc);
-    bool _remove(NodeMH*& node, const char MAMH[15]);
+    bool _remove(NodeMH*& node, const char MAMH[16]);
     NodeMH* clone(NodeMH* node);
-
 };

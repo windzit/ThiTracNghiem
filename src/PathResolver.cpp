@@ -3,115 +3,59 @@
 
 namespace fs = std::filesystem;
 
-// Static member
+// Static members
 std::string PathResolver::s_execDir = "";
-
-
-// ============================================================
-// INIT
-// ============================================================
-
-void PathResolver::init(const std::string& executablePath)
-{
-    try
-    {
-        fs::path execPath = fs::absolute(executablePath);
-
-        // Lấy thư mục chứa file executable
-        s_execDir = execPath.parent_path().string();
-
-        std::cout
-            << "[PathResolver] Executable dir: "
-            << s_execDir << '\n';
-    }
-    catch (...)
-    {
-        s_execDir = "";
-
-        std::cerr
-            << "[PathResolver] Cannot resolve executable path.\n";
-    }
-}
-
+std::string PathResolver::s_storageDir = "";
+std::string PathResolver::s_dataDir = "";
+std::string PathResolver::s_indexDir = "";
 
 // ============================================================
 // CHECK STORAGE
 // ============================================================
 
-bool isValidStorage(const fs::path& storage)
+static bool isValidStorage(const fs::path& storage)
 {
-    // storage phải tồn tại
-    if (!fs::exists(storage))
+    if (!fs::exists(storage) || !fs::is_directory(storage))
         return false;
 
-    // storage phải là thư mục
-    if (!fs::is_directory(storage))
-        return false;
-
-    // storage phải có data/
     fs::path dataDir = storage / "data";
-
-    if (!fs::exists(dataDir))
-        return false;
-
-    if (!fs::is_directory(dataDir))
-        return false;
-
-    return true;
+    return (fs::exists(dataDir) && fs::is_directory(dataDir));
 }
 
-
 // ============================================================
-// GET STORAGE DIRECTORY
+// RESOLVE INTERNAL
 // ============================================================
 
-std::string PathResolver::getStorageDir()
+static std::string resolveStorageLocation(const std::string& execDir)
 {
-    // --------------------------------------------------------
-    // PRIORITY 1
-    // Tìm storage từ thư mục chứa executable
-    // --------------------------------------------------------
-
-    if (!s_execDir.empty())
+    // PRIORITY 1: Tìm storage từ thư mục chứa executable đi ngược lên
+    if (!execDir.empty())
     {
-        fs::path current = s_execDir;
-
+        fs::path current = execDir;
         while (true)
         {
             fs::path storage = current / "storage";
-
-            // Không lấy storage nằm bên trong out/build
-            std::string path = storage.string();
+            std::string pathStr = storage.string();
 
             bool isBuildFolder =
-                path.find("out\\build") != std::string::npos ||
-                path.find("out/build") != std::string::npos;
+                pathStr.find("out\\build") != std::string::npos ||
+                pathStr.find("out/build") != std::string::npos;
 
             if (!isBuildFolder && isValidStorage(storage))
             {
                 return fs::absolute(storage).string();
             }
 
-            // Nếu đã tới thư mục gốc thì dừng
-            if (!current.has_parent_path() ||
-                current == current.parent_path())
+            if (!current.has_parent_path() || current == current.parent_path())
             {
                 break;
             }
-
-            // Đi lên một thư mục
             current = current.parent_path();
         }
     }
 
-
-    // --------------------------------------------------------
-    // PRIORITY 2
-    // Tìm storage từ Current Working Directory
-    // --------------------------------------------------------
-
+    // PRIORITY 2: Tìm storage từ Current Working Directory
     fs::path cwd = fs::current_path();
-
     fs::path candidates[] =
     {
         cwd / "storage",
@@ -128,101 +72,90 @@ std::string PathResolver::getStorageDir()
         }
     }
 
-
-    // --------------------------------------------------------
-    // PRIORITY 3
-    // Không tìm thấy → tạo storage mới
-    // --------------------------------------------------------
-
-    fs::path base =
-        s_execDir.empty()
-        ? fs::current_path()
-        : fs::path(s_execDir);
-
+    // PRIORITY 3: Không tìm thấy -> Tạo storage mới
+    fs::path base = execDir.empty() ? fs::current_path() : fs::path(execDir);
     fs::path storage = base / "storage";
-
     fs::create_directories(storage / "data");
     fs::create_directories(storage / "indexes");
-    fs::create_directories(storage / "backup");
 
-    std::cerr
-        << "[PathResolver] Created storage at: "
-        << storage << '\n';
-
+    std::cerr << "[PathResolver] Created storage at: " << storage << '\n';
     return fs::absolute(storage).string();
 }
 
+// ============================================================
+// INIT
+// ============================================================
+
+void PathResolver::init(const std::string& executablePath)
+{
+    try
+    {
+        fs::path execPath = fs::absolute(executablePath);
+        s_execDir = execPath.parent_path().string();
+        std::cout << "[PathResolver] Executable dir: " << s_execDir << '\n';
+    }
+    catch (...)
+    {
+        s_execDir = "";
+        std::cerr << "[PathResolver] Cannot resolve executable path.\n";
+    }
+
+    // Pre-cache all directories once at startup -> O(1) subsequent calls
+    s_storageDir = resolveStorageLocation(s_execDir);
+    s_dataDir = (fs::path(s_storageDir) / "data").string();
+    s_indexDir = (fs::path(s_storageDir) / "indexes").string();
+
+    fs::create_directories(s_dataDir);
+    fs::create_directories(s_indexDir);
+}
 
 // ============================================================
-// DATA DIRECTORY
+// DIRECTORY GETTERS (O(1) Cached)
 // ============================================================
+
+std::string PathResolver::getStorageDir()
+{
+    if (s_storageDir.empty())
+    {
+        s_storageDir = resolveStorageLocation(s_execDir);
+    }
+    return s_storageDir;
+}
 
 std::string PathResolver::getDataDir()
 {
-    fs::path dataDir =
-        fs::path(getStorageDir()) / "data";
-
-    fs::create_directories(dataDir);
-
-    return dataDir.string();
+    if (s_dataDir.empty())
+    {
+        s_dataDir = (fs::path(getStorageDir()) / "data").string();
+        fs::create_directories(s_dataDir);
+    }
+    return s_dataDir;
 }
-
-
-// ============================================================
-// INDEX DIRECTORY
-// ============================================================
 
 std::string PathResolver::getIndexDir()
 {
-    fs::path indexDir =
-        fs::path(getStorageDir()) / "indexes";
-
-    fs::create_directories(indexDir);
-
-    return indexDir.string();
+    if (s_indexDir.empty())
+    {
+        s_indexDir = (fs::path(getStorageDir()) / "indexes").string();
+        fs::create_directories(s_indexDir);
+    }
+    return s_indexDir;
 }
 
-
 // ============================================================
-// BACKUP DIRECTORY
+// FILE PATH GETTERS (O(1) In-Memory String Assembly)
 // ============================================================
 
-std::string PathResolver::getBackupDir()
+std::string PathResolver::getFilePath(const std::string& filename)
 {
-    fs::path backupDir =
-        fs::path(getStorageDir()) / "backup";
-
-    fs::create_directories(backupDir);
-
-    return backupDir.string();
-}
-
-
-// ============================================================
-// GET FILE PATH
-// ============================================================
-
-std::string PathResolver::getFilePath(
-    const std::string& filename)
-{
-    // File .idx → indexes/
-    if (filename.size() >= 4 &&
-        filename.substr(filename.size() - 4) == ".idx")
+    if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".idx")
     {
         return getIndexPath(filename);
     }
-
-    // File bình thường → data/
     return (fs::path(getDataDir()) / filename).string();
 }
 
-
-// ============================================================
-// GET INDEX FILE PATH
-// ============================================================
-
-std::string PathResolver::getIndexPath(
-    const std::string& filename)
+std::string PathResolver::getIndexPath(const std::string& filename)
 {
     return (fs::path(getIndexDir()) / filename).string();
 }

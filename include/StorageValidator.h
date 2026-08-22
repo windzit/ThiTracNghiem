@@ -27,5 +27,4 @@ public:
 
     // Structured logging helpers
     static void logValidationError(const std::string& entity, const std::string& pk, const std::string& field, const std::string& val, const std::string& reason);
-    static void logVerificationError(const std::string& entity, const std::string& pk, const std::string& field, const std::string& expected, const std::string& actual, const std::string& reason);
 };

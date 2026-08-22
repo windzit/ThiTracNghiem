@@ -40,9 +40,6 @@ add_executable(server
     "src/IndexManager.cpp"
     "src/StorageManager.cpp"
     "src/StorageValidator.cpp"
-    "src/StorageDeserializer.cpp"
-    "src/StorageVerifier.cpp"
-    "src/StorageIntegrityChecker.cpp"
     "src/StringNormalizer.cpp"
 )
 
@@ -67,9 +64,6 @@ add_executable(console
     "src/IndexManager.cpp"
     "src/StorageManager.cpp"
     "src/StorageValidator.cpp"
-    "src/StorageDeserializer.cpp"
-    "src/StorageVerifier.cpp"
-    "src/StorageIntegrityChecker.cpp"
     "src/StringNormalizer.cpp"
 )
 

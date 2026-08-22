@@ -16,9 +16,6 @@ public:
     // Resolves the absolute path to the storage/indexes directory
     static std::string getIndexDir();
 
-    // Resolves the absolute path to the storage/backup directory
-    static std::string getBackupDir();
-
     // Resolves the absolute path to a specific data file inside storage/data directory
     static std::string getFilePath(const std::string& filename);
 
@@ -28,5 +25,8 @@ public:
 private:
     // Absolute path to the directory containing the executable
     static std::string s_execDir;
+    static std::string s_storageDir;
+    static std::string s_dataDir;
+    static std::string s_indexDir;
 };
 

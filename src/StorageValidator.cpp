@@ -56,17 +56,6 @@ void StorageValidator::logValidationError(const std::string& entity, const std::
               << std::endl;
 }
 
-void StorageValidator::logVerificationError(const std::string& entity, const std::string& pk, const std::string& field, const std::string& expected, const std::string& actual, const std::string& reason) {
-    std::cerr << "\n[VERIFICATION ERROR]\n"
-              << "Entity:       " << entity << "\n"
-              << "Primary Key:  " << pk << "\n"
-              << "Field:        " << field << "\n"
-              << "Expected:     " << expected << "\n"
-              << "Actual:       " << actual << "\n"
-              << "Reason:       " << reason << "\n"
-              << std::endl;
-}
-
 bool StorageValidator::validateClass(const Lop& lop, std::string& errReason) {
     std::string malop = trim(lop.MALOP);
     std::string tenlop = trim(lop.TENLOP);

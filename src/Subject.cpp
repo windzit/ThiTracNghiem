@@ -114,7 +114,7 @@ bool Subject::_remove(NodeMH*& node, const char MAMH[16]) {
     char succMAMH[16] = {0};
     strncpy(succMAMH, succ->data.MAMH, sizeof(succMAMH) - 1);
 
-    // Copy scalar fields from successor to current node
+    
     strncpy(node->data.MAMH, succ->data.MAMH, sizeof(node->data.MAMH) - 1);
     node->data.MAMH[sizeof(node->data.MAMH) - 1] = '\0';
     node->data.TENMH = succ->data.TENMH;
@@ -154,13 +154,6 @@ NodeMH* Subject::find(const char MAMH[16]) {
     return nullptr;
 }
 
-bool Subject::save() {
-    return StorageManager::getInstance().saveSubjects(*this);
-}
 
-bool Subject::load() {
-    clear(root);
-    return StorageManager::getInstance().loadSubjects(*this);
-}
 
 

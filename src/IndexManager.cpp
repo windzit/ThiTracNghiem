@@ -22,11 +22,6 @@ void IndexManager::clear() {
     m_subjectIndex.clear();
     m_classIndex.clear();
     m_historyIndex.clear();
-    m_questionDirty = false;
-    m_studentDirty = false;
-    m_subjectDirty = false;
-    m_classDirty = false;
-    m_historyDirty = false;
 }
 
 bool IndexManager::auditAndLoadIndexes() {
@@ -148,19 +143,13 @@ bool IndexManager::rebuildQuestionIndex() {
         }
 
         DArray<std::string> tokens = split(trimmed, '|');
-        if (tokens.size() >= 2) {
-            // Status is last column
+        if (tokens.size() >= 3) {
+            // Status is last column (column 8)
             std::string status = trim(tokens[tokens.size() - 1]);
             if (status == "1") continue; // Skip STATUS_DELETED ('1')
 
-            std::string mamh, idStr;
-            if (!tokens[1].empty() && std::isdigit(static_cast<unsigned char>(tokens[1][0]))) {
-                mamh = trim(tokens[0]);
-                idStr = trim(tokens[1]);
-            } else if (!tokens[0].empty() && std::isdigit(static_cast<unsigned char>(tokens[0][0]))) {
-                idStr = trim(tokens[0]);
-                mamh = tokens.size() >= 2 ? trim(tokens[1]) : "";
-            }
+            std::string mamh = trim(tokens[0]);
+            std::string idStr = trim(tokens[1]);
             try {
                 int id = std::stoi(idStr);
                 m_questionIndex.insert(id, offset);
@@ -199,14 +188,11 @@ bool IndexManager::rebuildStudentIndex() {
         }
 
         DArray<std::string> tokens = split(trimmed, '|');
-        if (tokens.size() >= 2) {
+        if (tokens.size() >= 3) {
             std::string status = trim(tokens[tokens.size() - 1]);
             if (status == "1") continue; // Skip STATUS_DELETED ('1')
 
             std::string masv = trim(tokens[1]); // MALOP|MASV|HO|TEN|PHAI|PASSWORD|STATUS
-            if (masv.empty()) {
-                masv = trim(tokens[0]); // Fallback if MASV is first column
-            }
             if (!masv.empty()) {
                 m_studentIndex.insert(masv, offset);
             }
@@ -589,14 +575,12 @@ bool IndexManager::getHistoryOffsets(const std::string& masv, DArray<int64_t>& o
 
 void IndexManager::updateQuestionOffset(int id, int64_t offset) {
     m_questionIndex.insert(id, offset);
-    m_questionDirty = true;
-    if (m_autoFlush) saveQuestionIndex();
+    saveQuestionIndex();
 }
 
 void IndexManager::removeQuestionOffset(int id) {
     m_questionIndex.remove(id);
-    m_questionDirty = true;
-    if (m_autoFlush) saveQuestionIndex();
+    saveQuestionIndex();
 }
 
 void IndexManager::updateQuestionSubject(int id, const std::string& mamh) {
@@ -609,38 +593,32 @@ void IndexManager::removeQuestionSubject(int id) {
 
 void IndexManager::updateStudentOffset(const std::string& masv, int64_t offset) {
     m_studentIndex.insert(masv, offset);
-    m_studentDirty = true;
-    if (m_autoFlush) saveStudentIndex();
+    saveStudentIndex();
 }
 
 void IndexManager::removeStudentOffset(const std::string& masv) {
     m_studentIndex.remove(masv);
-    m_studentDirty = true;
-    if (m_autoFlush) saveStudentIndex();
+    saveStudentIndex();
 }
 
 void IndexManager::updateSubjectOffset(const std::string& mamh, int64_t offset) {
     m_subjectIndex.insert(mamh, offset);
-    m_subjectDirty = true;
-    if (m_autoFlush) saveSubjectIndex();
+    saveSubjectIndex();
 }
 
 void IndexManager::removeSubjectOffset(const std::string& mamh) {
     m_subjectIndex.remove(mamh);
-    m_subjectDirty = true;
-    if (m_autoFlush) saveSubjectIndex();
+    saveSubjectIndex();
 }
 
 void IndexManager::updateClassOffset(const std::string& malop, int64_t offset) {
     m_classIndex.insert(malop, offset);
-    m_classDirty = true;
-    if (m_autoFlush) saveClassIndex();
+    saveClassIndex();
 }
 
 void IndexManager::removeClassOffset(const std::string& malop) {
     m_classIndex.remove(malop);
-    m_classDirty = true;
-    if (m_autoFlush) saveClassIndex();
+    saveClassIndex();
 }
 
 void IndexManager::appendHistoryOffset(const std::string& masv, int64_t offset) {
@@ -652,14 +630,5 @@ void IndexManager::appendHistoryOffset(const std::string& masv, int64_t offset) 
         newArr.push_back(offset);
         m_historyIndex.insert(masv, newArr);
     }
-    m_historyDirty = true;
-    if (m_autoFlush) saveHistoryIndex();
-}
-
-void IndexManager::flushDirtyIndexes() {
-    if (m_questionDirty) { saveQuestionIndex(); m_questionDirty = false; }
-    if (m_studentDirty) { saveStudentIndex(); m_studentDirty = false; }
-    if (m_subjectDirty) { saveSubjectIndex(); m_subjectDirty = false; }
-    if (m_classDirty) { saveClassIndex(); m_classDirty = false; }
-    if (m_historyDirty) { saveHistoryIndex(); m_historyDirty = false; }
+    saveHistoryIndex();
 }

@@ -133,8 +133,6 @@ bool Student::update(const std::string& MASV, const SinhVien& newData) {
 }
 
 bool Student::save(const std::string& MALOP) {
-    StorageManager::getInstance().markDirty();
-    StorageManager::getInstance().incrementOpCount();
     return true;
 }
 

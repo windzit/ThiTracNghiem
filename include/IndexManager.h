@@ -62,31 +62,12 @@ public:
 
     void appendHistoryOffset(const std::string& masv, int64_t offset);
 
-    // Batch flush support
-    void setAutoFlush(bool enable) { m_autoFlush = enable; }
-    bool isAutoFlush() const { return m_autoFlush; }
-    void flushDirtyIndexes();
-
-    // Index metrics
-    size_t getQuestionIndexCount() const { return m_questionIndex.size(); }
-    size_t getStudentIndexCount() const { return m_studentIndex.size(); }
-    size_t getSubjectIndexCount() const { return m_subjectIndex.size(); }
-    size_t getClassIndexCount() const { return m_classIndex.size(); }
-    size_t getHistoryIndexCount() const { return m_historyIndex.size(); }
-
     void clear();
 
 private:
     IndexManager() = default;
     IndexManager(const IndexManager&) = delete;
     IndexManager& operator=(const IndexManager&) = delete;
-
-    bool m_autoFlush = true;
-    bool m_questionDirty = false;
-    bool m_studentDirty = false;
-    bool m_subjectDirty = false;
-    bool m_classDirty = false;
-    bool m_historyDirty = false;
 
     HashTable<int, int64_t> m_questionIndex;                      // Question ID -> Byte Offset
     HashTable<int, std::string> m_questionSubjectIndex;           // Question ID -> MAMH

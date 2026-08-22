@@ -2,9 +2,6 @@
 #include "../include/IndexManager.h"
 #include "../include/CommonTypes.h"
 #include "../include/StorageValidator.h"
-#include "../include/StorageVerifier.h"
-
-#include "../include/StorageIntegrityChecker.h"
 #include "../include/StringNormalizer.h"
 #include "../include/Utils.h"
 #include <fstream>
@@ -30,67 +27,20 @@ StorageManager& StorageManager::getInstance() {
     return instance;
 }
 
-bool StorageManager::initializeStorage() {
-    std::string dir = PathResolver::getStorageDir();
-    if (!fs::exists(dir)) {
-        fs::create_directories(dir);
-    }
-    PathResolver::getDataDir();
-    PathResolver::getIndexDir();
-    PathResolver::getBackupDir();
-
-    // 1. Startup Compaction Check (runs compaction if threshold met BEFORE loading runtime indexes)
-    checkAndExecuteStartupCompaction();
-
-    // 2. Audit and load runtime indexes with startup terminal report
-    IndexManager::getInstance().auditAndLoadIndexes();
-    return true;
-}
-
-
 bool StorageManager::atomicWriteFile(const std::string& targetPath, const std::string& content) {
     std::string tempPath = targetPath + ".tmp";
     std::ofstream out(tempPath, std::ios::out | std::ios::binary);
     if (!out.is_open()) return false;
-    
     out << content;
-    out.flush();
     out.close();
-
     std::error_code ec;
-    fs::rename(tempPath, targetPath, ec);
-    if (ec) {
-        std::error_code ec2;
-        fs::copy_file(tempPath, targetPath, fs::copy_options::overwrite_existing, ec2);
-        fs::remove(tempPath, ec2);
-        if (ec2) return false;
-    }
-    return true;
-}
-
-
-void StorageManager::markDirty() {
-    dirty = true;
-}
-
-bool StorageManager::isDirty() const {
-    return dirty;
-}
-
-void StorageManager::incrementOpCount() {
-    opCount++;
-}
-
-bool StorageManager::checkAndSaveAuto(Class& dsl, Subject& dsmh) {
-    if (opCount >= SAVE_THRESHOLD) {
-        return saveAllData(dsl, dsmh);
-    }
-    return true;
+    fs::copy_file(tempPath, targetPath, fs::copy_options::overwrite_existing, ec);
+    fs::remove(tempPath, ec);
+    return !ec;
 }
 
 int StorageManager::getNextQuestionID() {
     cachedLastQuestionId++;
-    markDirty();
     saveMetadata();
     return cachedLastQuestionId;
 }
@@ -505,17 +455,13 @@ bool StorageManager::loadAllData(Class& dsl, Subject& dsmh) {
     rebuildUsedFlags(dsmh, &dsl);
     std::cout << "[STARTUP LOG] [END] Rebuild derived 'used' flags\n";
 
-    std::cout << "[STARTUP LOG] [BEGIN] StorageIntegrityChecker::auditStorageIntegrity\n";
-    StorageIntegrityChecker::auditStorageIntegrity(dsl, dsmh, cachedExamSessions);
-    std::cout << "[STARTUP LOG] [END] StorageIntegrityChecker::auditStorageIntegrity\n";
-
     saveMetadata();
     std::cout << "[STARTUP LOG] [END] loadAllData\n";
     return true;
 }
 
 // ============================================================
-// SAVE IMPLEMENTATIONS (VALIDATED & VERIFIED ATOMIC WRITE)
+// SAVE IMPLEMENTATIONS (VALIDATED ATOMIC WRITE)
 // ============================================================
 
 bool StorageManager::saveClasses(Class& dsl) {
@@ -542,11 +488,6 @@ bool StorageManager::saveClasses(Class& dsl) {
     std::string targetPath = PathResolver::getFilePath("classes.txt");
     if (!atomicWriteFile(targetPath, ss.str())) return false;
 
-    std::string verifyErr;
-    if (!StorageVerifier::verifyClasses(dsl, targetPath, verifyErr)) {
-        std::cerr << "[StorageVerification] Deep verification failed: " << verifyErr << std::endl;
-        return false;
-    }
     IndexManager::getInstance().rebuildClassIndex();
     IndexManager::getInstance().saveClassIndex();
     return true;
@@ -584,11 +525,6 @@ bool StorageManager::saveStudents(Class& dsl) {
     std::string targetPath = PathResolver::getFilePath("students.txt");
     if (!atomicWriteFile(targetPath, ss.str())) return false;
 
-    std::string verifyErr;
-    if (!StorageVerifier::verifyStudents(dsl, targetPath, verifyErr)) {
-        std::cerr << "[StorageVerification] Deep verification failed: " << verifyErr << std::endl;
-        return false;
-    }
     IndexManager::getInstance().rebuildStudentIndex();
     IndexManager::getInstance().saveStudentIndex();
     return true;
@@ -614,7 +550,7 @@ static bool validateAndCollectQuestions(NodeMH* node, std::ostringstream& questS
     if (!validateAndCollectQuestions(node->left, questSS, questionCount, errReason)) return false;
 
     const MonHoc& mh = node->data;
-    dsCHT* qNode = const_cast<MonHoc&>(mh).dsCauHoi.getRoot();
+    dsCHT* qNode = mh.dsCauHoi.getRoot();
     while (qNode) {
         const CauHoi& q = qNode->cauhoi;
         if (!StorageValidator::validateQuestion(q, mh.MAMH, errReason)) return false;
@@ -649,11 +585,6 @@ bool StorageManager::saveSubjects(Subject& dsmh) {
     std::string targetPath = PathResolver::getFilePath("subjects.txt");
     if (!atomicWriteFile(targetPath, subjSS.str())) return false;
 
-    std::string verifyErr;
-    if (!StorageVerifier::verifySubjects(dsmh, targetPath, verifyErr)) {
-        std::cerr << "[StorageVerification] Deep verification failed: " << verifyErr << std::endl;
-        return false;
-    }
     IndexManager::getInstance().rebuildSubjectIndex();
     IndexManager::getInstance().saveSubjectIndex();
     return true;
@@ -673,11 +604,6 @@ bool StorageManager::saveQuestions(Subject& dsmh) {
     std::string targetPath = PathResolver::getFilePath("questions.txt");
     if (!atomicWriteFile(targetPath, questSS.str())) return false;
 
-    std::string verifyErr;
-    if (!StorageVerifier::verifyQuestions(dsmh, targetPath, verifyErr)) {
-        std::cerr << "[StorageVerification] Deep verification failed: " << verifyErr << std::endl;
-        return false;
-    }
     IndexManager::getInstance().rebuildQuestionIndex();
     IndexManager::getInstance().saveQuestionIndex();
     return true;
@@ -695,7 +621,7 @@ bool StorageManager::saveScores(Class& dsl) {
             dsSinhVien* curSV = lop->dssinhvien.getRoot();
             while (curSV) {
                 const SinhVien& sv = curSV->sinhvien;
-                dsDiemThi* curScore = const_cast<SinhVien&>(sv).dsdiemthi.getRoot();
+                dsDiemThi* curScore = sv.dsdiemthi.getRoot();
                 while (curScore) {
                     const DiemThi& dt = curScore->diemthi;
                     std::string errReason;
@@ -764,14 +690,7 @@ static bool flushExamSessionsFile() {
         activeCount++;
     }
     std::string targetPath = PathResolver::getFilePath("exam_sessions.txt");
-    if (!StorageManager::atomicWriteFile(targetPath, ss.str())) return false;
-
-    std::string verifyErr;
-    if (!StorageVerifier::verifyExamSessions(cachedExamSessions, targetPath, verifyErr)) {
-        std::cerr << "[StorageVerification] Deep verification failed: " << verifyErr << std::endl;
-        return false;
-    }
-    return true;
+    return StorageManager::atomicWriteFile(targetPath, ss.str());
 }
 
 bool StorageManager::saveExamSession(const ExamSession& session) {
@@ -915,24 +834,12 @@ bool StorageManager::resetToDefault() {
     // 3. Reset internal state
     cachedLastQuestionId = 0;
     cachedExamSessions.clear();
-    dirty = false;
-    opCount = 0;
 
     IndexManager::getInstance().clear();
     IndexManager::getInstance().rebuildAllIndexes();
 
     std::cout << "[ResetStorage] 10 files reset to default empty state.\n";
     return true;
-}
-
-bool StorageManager::rebuildIndexes() {
-    return IndexManager::getInstance().rebuildAllIndexes();
-}
-
-bool StorageManager::syncIndexes() {
-    return IndexManager::getInstance().saveQuestionIndex() &&
-           IndexManager::getInstance().saveStudentIndex() &&
-           IndexManager::getInstance().saveHistoryIndex();
 }
 
 bool StorageManager::saveAllData(Class& dsl, Subject& dsmh) {
@@ -953,9 +860,6 @@ bool StorageManager::saveAllData(Class& dsl, Subject& dsmh) {
     // 4. Save scores
     saveScores(dsl);
 
-    // Reset dirty state
-    dirty = false;
-    opCount = 0;
     return true;
 }
 
@@ -1155,39 +1059,6 @@ bool StorageManager::markStudentStatusAt(int64_t offset, char status) {
     return true;
 }
 
-bool StorageManager::readQuestionAt(int64_t offset, CauHoi& outQ, std::string& outMamh) {
-    if (offset < 0) return false;
-    std::string filePath = PathResolver::getFilePath("questions.txt");
-    std::ifstream file(filePath, std::ios::in | std::ios::binary);
-    if (!file.is_open()) return false;
-
-    file.seekg(offset);
-    std::string line;
-    if (!std::getline(file, line)) {
-        file.close();
-        return false;
-    }
-    file.close();
-
-    DArray<std::string> tokens = split(line, '|');
-    if (tokens.size() >= 9) {
-        std::string status = trim(tokens[8]);
-        if (status == "1") return false; // Deleted unused
-
-        outMamh = trim(tokens[0]);
-        outQ.ID = std::stoi(trim(tokens[1]));
-        outQ.NOIDUNG = trim(tokens[2]);
-        outQ.A = trim(tokens[3]);
-        outQ.B = trim(tokens[4]);
-        outQ.C = trim(tokens[5]);
-        outQ.D = trim(tokens[6]);
-        outQ.DAPAN_DUNG = trim(tokens[7]).empty() ? 'A' : trim(tokens[7])[0];
-        outQ.deleted = (status == "2"); // Soft deleted
-        return true;
-    }
-    return false;
-}
-
 bool StorageManager::writeQuestionAt(int64_t offset, const CauHoi& q, const std::string& mamh, char status) {
     if (offset < 0) return false;
     std::string filePath = PathResolver::getFilePath("questions.txt");
@@ -1264,33 +1135,6 @@ bool StorageManager::markQuestionStatusAt(int64_t offset, char status) {
     return true;
 }
 
-bool StorageManager::readSubjectAt(int64_t offset, MonHoc& outMh) {
-    if (offset < 0) return false;
-    std::string filePath = PathResolver::getFilePath("subjects.txt");
-    std::ifstream file(filePath, std::ios::in | std::ios::binary);
-    if (!file.is_open()) return false;
-
-    file.seekg(offset);
-    std::string line;
-    if (!std::getline(file, line)) {
-        file.close();
-        return false;
-    }
-    file.close();
-
-    DArray<std::string> tokens = split(line, '|');
-    if (tokens.size() >= 4) {
-        std::string status = trim(tokens[3]);
-        if (status == "1") return false;
-
-        std::strcpy(outMh.MAMH, trim(tokens[0]).c_str());
-        outMh.TENMH = trim(tokens[1]);
-        outMh.used = (trim(tokens[2]) == "1");
-        return true;
-    }
-    return false;
-}
-
 bool StorageManager::writeSubjectAt(int64_t offset, const MonHoc& mh, char status) {
     if (offset < 0) return false;
     std::string filePath = PathResolver::getFilePath("subjects.txt");
@@ -1355,32 +1199,6 @@ bool StorageManager::markSubjectStatusAt(int64_t offset, char status) {
         incrementDeletedCount("subject");
     }
     return true;
-}
-
-bool StorageManager::readClassAt(int64_t offset, Lop& outLop) {
-    if (offset < 0) return false;
-    std::string filePath = PathResolver::getFilePath("classes.txt");
-    std::ifstream file(filePath, std::ios::in | std::ios::binary);
-    if (!file.is_open()) return false;
-
-    file.seekg(offset);
-    std::string line;
-    if (!std::getline(file, line)) {
-        file.close();
-        return false;
-    }
-    file.close();
-
-    DArray<std::string> tokens = split(line, '|');
-    if (tokens.size() >= 3) {
-        std::string status = trim(tokens[2]);
-        if (status == "1") return false;
-
-        outLop.MALOP = trim(tokens[0]);
-        outLop.TENLOP = trim(tokens[1]);
-        return true;
-    }
-    return false;
 }
 
 bool StorageManager::writeClassAt(int64_t offset, const Lop& lop, char status) {
@@ -1629,13 +1447,4 @@ bool StorageManager::compactClasses() {
         IndexManager::getInstance().rebuildClassIndex();
         IndexManager::getInstance().saveClassIndex();
     });
-}
-
-bool StorageManager::compactAll() {
-    bool sOk = compactStudents();
-    bool qOk = compactQuestions();
-    bool subOk = compactSubjects();
-    bool cOk = compactClasses();
-    resetDeletedCount("all");
-    return sOk && qOk && subOk && cOk;
 }
