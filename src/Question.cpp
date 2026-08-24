@@ -5,6 +5,7 @@ Question::Question(const Question &other) {
   root = nullptr;
   tail = nullptr;
   listSize = 0;
+  activeCount = 0;
 
   dsCHT *p = other.root;
 
@@ -22,6 +23,7 @@ Question &Question::operator=(const Question &other) {
   root = nullptr;
   tail = nullptr;
   listSize = 0;
+  activeCount = 0;
 
   dsCHT *p = other.root;
 
@@ -41,20 +43,24 @@ void Question::clear() {
   }
   tail = nullptr;
   listSize = 0;
+  activeCount = 0;
 }
 
 void Question::swap(Question& other) {
   dsCHT *tmpRoot = root;
   dsCHT *tmpTail = tail;
   int tmpSize = listSize;
+  int tmpActive = activeCount;
 
   root = other.root;
   tail = other.tail;
   listSize = other.listSize;
+  activeCount = other.activeCount;
 
   other.root = tmpRoot;
   other.tail = tmpTail;
   other.listSize = tmpSize;
+  other.activeCount = tmpActive;
 }
 
 bool Question::insert(CauHoi &cauhoi, bool autoId) {
@@ -65,6 +71,7 @@ bool Question::insert(CauHoi &cauhoi, bool autoId) {
     if (!root) {
         root = tail = new dsCHT(cauhoi);
         listSize++;
+        if (!cauhoi.deleted) activeCount++;
         return true;
     }
     // 2. Chèn đuôi O(1) (Do ID tự động tăng toàn cục, ID mới luôn lớn hơn tail->ID)
@@ -72,6 +79,7 @@ bool Question::insert(CauHoi &cauhoi, bool autoId) {
         tail->next = new dsCHT(cauhoi);
         tail = tail->next;
         listSize++;
+        if (!cauhoi.deleted) activeCount++;
         return true;
     }
     return false; // Từ chối nếu ID <= tail->cauhoi.ID (trùng lặp hoặc sai thứ tự)
@@ -88,6 +96,8 @@ bool Question::removeNode(int ID) {
     root = root->next;
     if (!root)
       tail = nullptr;
+    if (!temp->cauhoi.deleted)
+      activeCount--;
     delete temp;
     listSize--;
     return true;
@@ -111,6 +121,8 @@ bool Question::removeNode(int ID) {
   if (temp == tail) {
     tail = pre;
   }
+  if (!temp->cauhoi.deleted)
+    activeCount--;
   delete temp;
   listSize--;
   return true;
@@ -121,7 +133,10 @@ bool Question::setDeleted(int ID) {
   dsCHT *node = find(ID);
   if (!node)
     return false;
-  node->cauhoi.deleted = true;
+  if (!node->cauhoi.deleted) {
+    node->cauhoi.deleted = true;
+    activeCount--;
+  }
   return true;
 }
 
@@ -130,7 +145,10 @@ bool Question::restoreDeleted(int ID) {
   dsCHT *node = find(ID);
   if (!node)
     return false;
-  node->cauhoi.deleted = false;
+  if (node->cauhoi.deleted) {
+    node->cauhoi.deleted = false;
+    activeCount++;
+  }
   return true;
 }
 

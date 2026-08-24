@@ -9,8 +9,7 @@ import { Select } from "@/shared/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
 import { SubjectAutocomplete } from "@/shared/components"
 import { subjectService } from "@/entities/subject/subjectService"
-import { authService } from "@/entities/session/authService"
-import { examService } from "@/entities/exam/examService"
+import { useExamSession } from "@/app/providers/ExamSessionContext"
 import type { Subject } from "@/shared/types"
 
 const timeOptions = [
@@ -32,46 +31,42 @@ export default function TakeExam() {
   const [subjectError, setSubjectError] = useState("")
   const [numQuestions, setNumQuestions] = useState("")
   const [timeLimit, setTimeLimit] = useState("")
+  const { activeSession } = useExamSession()
 
-  // Check active resume session on mount
+  // Check active resume session from Context (no direct API call)
   useEffect(() => {
-    const user = authService.getCurrentUser()
-    if (!user || !user.id) return
+    if (activeSession && activeSession.remainingSeconds > 0) {
+      const answersMap: Record<number, number> = {}
+      const mappedQs = activeSession.questions.map((q) => {
+        if (q.selectedAnswer) {
+          const idx = ["A", "B", "C", "D"].indexOf(q.selectedAnswer.toUpperCase())
+          if (idx !== -1) answersMap[q.id] = idx
+        }
+        return {
+          id: String(q.id),
+          numericId: q.id,
+          content: q.noidung,
+          options: [q.A, q.B, q.C, q.D],
+          type: "Trắc nghiệm 1 đáp án",
+        }
+      })
 
-    examService.getResumeSession(user.id).then((session) => {
-      if (session && session.remainingSeconds > 0) {
-        const answersMap: Record<number, number> = {}
-        const mappedQs = session.questions.map((q) => {
-          if (q.selectedAnswer) {
-            const idx = ["A", "B", "C", "D"].indexOf(q.selectedAnswer.toUpperCase())
-            if (idx !== -1) answersMap[q.id] = idx
-          }
-          return {
-            id: String(q.id),
-            numericId: q.id,
-            content: q.noidung,
-            options: [q.A, q.B, q.C, q.D],
-            type: "Trắc nghiệm 1 đáp án",
-          }
-        })
-
-        navigate("/student/taking-exam", {
-          state: {
-            resumedSession: {
-              subject: session.tenmh || session.mamh,
-              subjectId: session.mamh,
-              numQuestions: session.questions.length,
-              timeLimit: session.thoiGianPhut,
-              remainingSeconds: session.remainingSeconds,
-              questions: mappedQs,
-              answersMap,
-              fullscreenRequired: !!session.fullscreenRequired,
-            },
+      navigate("/student/taking-exam", {
+        state: {
+          resumedSession: {
+            subject: activeSession.tenmh || activeSession.mamh,
+            subjectId: activeSession.mamh,
+            numQuestions: activeSession.questions.length,
+            timeLimit: activeSession.thoiGianPhut,
+            remainingSeconds: activeSession.remainingSeconds,
+            questions: mappedQs,
+            answersMap,
+            fullscreenRequired: !!activeSession.fullscreenRequired,
           },
-        })
-      }
-    })
-  }, [navigate])
+        },
+      })
+    }
+  }, [activeSession, navigate])
 
   // Fetch all subjects on mount (Phase H: always display all available subjects returned by Backend)
   useEffect(() => {

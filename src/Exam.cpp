@@ -115,7 +115,7 @@ void ThiTracNghiem(Subject& dsmh, SinhVien* sv) {
         return;
     }
     
-    int totalQuestions = monhoc->data.dsCauHoi.size();
+    int totalQuestions = monhoc->data.dsCauHoi.activeSize();
     
     if (totalQuestions == 0) {
         std::cout << "Mon hoc nay chua co cau hoi nao.\n";

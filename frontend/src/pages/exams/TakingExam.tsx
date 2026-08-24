@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import {
   Clock,
@@ -27,6 +27,7 @@ import { authService } from "@/entities/session/authService"
 import { examService } from "@/entities/exam/examService"
 import { examSessionService } from "@/entities/exam/examSessionService"
 import { useConnection } from "@/app/providers/ConnectionContext"
+import { useExamSession } from "@/app/providers/ExamSessionContext"
 
 const MAX_VIOLATIONS = 4
 
@@ -281,6 +282,8 @@ export default function TakingExam() {
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange)
   }, [isReady, fullscreenRequired, fullscreenDenied, handleViolation])
 
+  const { clearSession } = useExamSession()
+
   const handleSubmit = useCallback(async () => {
     // Clear any active debounce timer and flush pending answers before submit
     if (debounceTimeoutRef.current) {
@@ -288,6 +291,7 @@ export default function TakingExam() {
     }
     await flushPendingAnswers()
 
+    clearSession()
     examSessionService.endSession()
     setIsReady(false)
     if (timerRef.current) clearInterval(timerRef.current)

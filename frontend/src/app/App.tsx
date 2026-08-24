@@ -22,6 +22,7 @@ import ExamLayout from "@/widgets/layouts/ExamLayout"
 import { RootErrorBoundary, GlobalConnectionOverlay } from "@/shared/components"
 import { ConnectionProvider } from "@/app/providers/ConnectionContext"
 import { ToastProvider } from "@/app/providers/ToastContext"
+import { ExamSessionProvider } from "@/app/providers/ExamSessionContext"
 
 import ExamReview from "@/pages/exams/ExamReview"
 
@@ -29,11 +30,12 @@ export default function App() {
   return (
     <RootErrorBoundary>
       <ConnectionProvider>
-        <ToastProvider>
-          <GlobalConnectionOverlay />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<RoleSelection />} />
+        <ExamSessionProvider>
+          <ToastProvider>
+            <GlobalConnectionOverlay />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<RoleSelection />} />
             
             {/* Student Routes */}
             <Route path="/student/login" element={<StudentLogin />} />
@@ -64,7 +66,8 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
-        </ToastProvider>
+          </ToastProvider>
+        </ExamSessionProvider>
       </ConnectionProvider>
     </RootErrorBoundary>
   )

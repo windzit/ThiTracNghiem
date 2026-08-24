@@ -12,7 +12,7 @@ import {
 } from "lucide-react"
 import { NotificationDropdown } from "@/widgets/notifications/NotificationDropdown"
 import { authService } from "@/entities/session/authService"
-import { examService } from "@/entities/exam/examService"
+import { useExamSession } from "@/app/providers/ExamSessionContext"
 
 interface StudentLayoutProps {
   children: React.ReactNode
@@ -29,21 +29,7 @@ export default function StudentLayout({ children, breadcrumb }: StudentLayoutPro
   const navigate = useNavigate()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [isExamActive, setIsExamActive] = useState(false)
-
-  // Check if student has an active exam in progress (to hide Logout button)
-  useEffect(() => {
-    const user = authService.getCurrentUser()
-    if (!user || !user.id) return
-
-    examService.getResumeSession(user.id).then((session) => {
-      if (session && session.remainingSeconds > 0) {
-        setIsExamActive(true)
-      } else {
-        setIsExamActive(false)
-      }
-    })
-  }, [])
+  const { hasActiveExam: isExamActive } = useExamSession()
 
   const handleLogout = async () => {
     const ok = await authService.logout()

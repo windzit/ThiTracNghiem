@@ -25,7 +25,7 @@ struct dsCHT {
 
 class Question {
 public:
-    Question() : root(nullptr), tail(nullptr), listSize(0) {};
+    Question() : root(nullptr), tail(nullptr), listSize(0), activeCount(0) {};
 
     Question(const Question& other);
 
@@ -43,6 +43,8 @@ public:
     dsCHT* find(int ID);
     bool hasUsedQuestions() const;
     int size() const { return listSize; }
+    int activeSize() const { return activeCount; }
+    int getActiveCount() const { return activeCount; }
     void swap(Question& other);
     dsCHT* getRoot() const { return root; }
     dsCHT* getTail() const { return tail; }
@@ -50,6 +52,7 @@ private:
     dsCHT* root;
     dsCHT* tail;
     int listSize = 0;
+    int activeCount = 0;
 
     void clear();
 };

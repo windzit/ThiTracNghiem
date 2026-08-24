@@ -1,4 +1,4 @@
-﻿import StudentLayout from "@/widgets/layouts/StudentLayout"
+import StudentLayout from "@/widgets/layouts/StudentLayout"
 import { useNavigate } from "react-router-dom"
 import {
   ClipboardList,
@@ -13,7 +13,7 @@ import {
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts"
 import { authService } from "@/entities/session/authService"
 import { resultService, type StudentStats } from "@/entities/exam/resultService"
-import { examService, type ResumeExamResponse } from "@/entities/exam/examService"
+import { useExamSession } from "@/app/providers/ExamSessionContext"
 import { useState, useEffect } from "react"
 import { Button } from "@/shared/ui/button"
 import { EmptyState } from "@/shared/components"
@@ -28,7 +28,7 @@ export default function StudentDashboard() {
   const user = authService.getCurrentUser()
   const [stats, setStats] = useState<StudentStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeSession, setActiveSession] = useState<ResumeExamResponse | null>(null)
+  const { activeSession } = useExamSession()
 
   useEffect(() => {
     const masv = user?.id || "N21DCCN004"
@@ -39,14 +39,6 @@ export default function StudentDashboard() {
       setStats(data)
       setLoading(false)
     })
-
-    if (user?.id) {
-      examService.getResumeSession(user.id).then((session) => {
-        if (session && session.remainingSeconds > 0) {
-          setActiveSession(session)
-        }
-      })
-    }
   }, [user])
 
   const handleResumeExam = () => {

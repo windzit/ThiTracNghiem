@@ -1,1 +1,1 @@
-fullscreen=false
+fullscreen=true

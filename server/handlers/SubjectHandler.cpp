@@ -15,7 +15,7 @@ static void collectSubjectsForAPI(NodeMH* node, json& arr) {
         {"mamh", string(node->data.MAMH)},
         {"tenmh", node->data.TENMH},
         {"used", node->data.used},
-        {"questionCount", node->data.dsCauHoi.size()}
+        {"questionCount", node->data.dsCauHoi.activeSize()}
     });
     collectSubjectsForAPI(node->right, arr);
 }
