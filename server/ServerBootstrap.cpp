@@ -28,6 +28,14 @@ int ServerBootstrap::run(int argc, char* argv[]) {
         if (arg == "--test-validation") {
             return runValidationTests() ? 0 : 1;
         }
+        if (arg == "--test-ef") {
+            return runFullEFTestSuite() ? 0 : 1;
+        }
+        if (arg == "--test-all") {
+            bool vOk = runValidationTests();
+            bool efOk = runFullEFTestSuite();
+            return (vOk && efOk) ? 0 : 1;
+        }
     }
 
     std::cout << "[STARTUP LOG] [BEGIN] LoadAllData\n";

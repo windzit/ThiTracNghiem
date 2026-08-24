@@ -67,14 +67,14 @@ bool Question::insert(CauHoi &cauhoi, bool autoId) {
         listSize++;
         return true;
     }
-    // 2. Chèn vào đuôi O(1) (Do ID trong hệ thống luôn tăng dần tuyệt đối)
+    // 2. Chèn đuôi O(1) (Do ID tự động tăng toàn cục, ID mới luôn lớn hơn tail->ID)
     if (cauhoi.ID > tail->cauhoi.ID) {
         tail->next = new dsCHT(cauhoi);
         tail = tail->next;
         listSize++;
         return true;
     }
-    return false; // Từ chối nếu ID <= tail->ID (trùng lặp hoặc sai thứ tự)
+    return false; // Từ chối nếu ID <= tail->cauhoi.ID (trùng lặp hoặc sai thứ tự)
 }
 
 

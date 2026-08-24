@@ -28,15 +28,38 @@ StorageManager& StorageManager::getInstance() {
 }
 
 bool StorageManager::atomicWriteFile(const std::string& targetPath, const std::string& content) {
-    std::string tempPath = targetPath + ".tmp";
-    std::ofstream out(tempPath, std::ios::out | std::ios::binary);
-    if (!out.is_open()) return false;
-    out << content;
+    const std::string tempPath = targetPath + ".tmp";
+
+    std::ofstream out(tempPath, std::ios::out | std::ios::binary | std::ios::trunc);
+    if (!out.is_open()) {
+        return false;
+    }
+
+    out.write(content.data(), content.size());
+    out.flush();
+
+    // Kiểm tra xem quá trình ghi có phát sinh lỗi I/O không
+    if (!out.good()) {
+        out.close();
+        std::error_code ec_clean;
+        fs::remove(tempPath, ec_clean); // Dọn dẹp file tạm bị hỏng
+        return false;
+    }
+
     out.close();
+
+    // Hoán đổi nguyên tử (Atomic Replace) qua file system rename
     std::error_code ec;
-    fs::copy_file(tempPath, targetPath, fs::copy_options::overwrite_existing, ec);
-    fs::remove(tempPath, ec);
-    return !ec;
+    fs::rename(tempPath, targetPath, ec);
+
+    if (ec) {
+        // Dọn dẹp file tạm nếu rename thất bại
+        std::error_code ec_clean;
+        fs::remove(tempPath, ec_clean);
+        return false;
+    }
+
+    return true;
 }
 
 int StorageManager::getNextQuestionID() {
@@ -1115,6 +1138,7 @@ bool StorageManager::appendQuestion(const CauHoi& q, const std::string& mamh, in
     file.close();
 
     IndexManager::getInstance().updateQuestionOffset(q.ID, outOffset);
+    IndexManager::getInstance().updateQuestionSubject(q.ID, mamh);
     return true;
 }
 
@@ -1191,7 +1215,7 @@ bool StorageManager::markSubjectStatusAt(int64_t offset, char status) {
     if (!file.is_open()) return false;
 
     file.seekp(offset + StorageConfig::STATUS_OFFSET_SUBJECT);
-    file.write(&status, 1);
+    file.write(&status, 1); // 1 ở đây biểu trưng cho 1 byte
     file.flush();
     file.close();
 

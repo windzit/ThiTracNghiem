@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { BookOpen, Clock, Hash, AlertTriangle, AlertCircle } from "lucide-react"
 import StudentLayout from "@/widgets/layouts/StudentLayout"
@@ -29,7 +29,6 @@ export default function TakeExam() {
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null)
   const [availableQuestionCount, setAvailableQuestionCount] = useState<number | null>(null)
-  const [loadingSubjectDetail, setLoadingSubjectDetail] = useState(false)
   const [subjectError, setSubjectError] = useState("")
   const [numQuestions, setNumQuestions] = useState("")
   const [timeLimit, setTimeLimit] = useState("")
@@ -86,32 +85,21 @@ export default function TakeExam() {
       })
   }, [])
 
-  // Fetch real question count when selectedSubject changes
+  // Set real question count directly from selectedSubject (no extra API call)
   useEffect(() => {
     setNumQuestions("")
-    setAvailableQuestionCount(null)
     setSubjectError("")
 
-    if (!selectedSubject) return
+    if (!selectedSubject) {
+      setAvailableQuestionCount(null)
+      return
+    }
 
-    setLoadingSubjectDetail(true)
-    subjectService
-      .getById(selectedSubject.id)
-      .then((detail) => {
-        setLoadingSubjectDetail(false)
-        if (detail) {
-          setAvailableQuestionCount(detail.questionCount || 0)
-        } else {
-          setAvailableQuestionCount(0)
-          setSubjectError("Không tìm thấy thông tin môn học trong hệ thống.")
-        }
-      })
-      .catch((err: any) => {
-        setLoadingSubjectDetail(false)
-        setAvailableQuestionCount(0)
-        const msg = err?.response?.data?.message || err?.message || "Lỗi khi nạp dữ liệu môn học từ server."
-        setSubjectError(msg)
-      })
+    const count = selectedSubject.questionCount ?? 0
+    setAvailableQuestionCount(count)
+    if (count === 0) {
+      setSubjectError("Môn học này chưa có câu hỏi nào trong ngân hàng đề thi.")
+    }
   }, [selectedSubject])
 
   // Validate number of questions input
@@ -135,8 +123,7 @@ export default function TakeExam() {
     availableQuestionCount > 0 &&
     numQuestions !== "" &&
     questionValidationError === "" &&
-    timeLimit !== "" &&
-    !loadingSubjectDetail
+    timeLimit !== ""
 
   const handleContinue = () => {
     if (!canContinue || !selectedSubject) return
@@ -195,7 +182,7 @@ export default function TakeExam() {
             )}
 
             {/* Helper Text: Ngân hàng câu hỏi hiện có */}
-            {selectedSubject && !loadingSubjectDetail && availableQuestionCount !== null && (
+            {selectedSubject && availableQuestionCount !== null && (
               <div className="text-xs font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-between">
                 <span>Ngân hàng câu hỏi hiện có:</span>
                 <strong className={availableQuestionCount > 0 ? "text-blue-600 text-sm" : "text-red-500 text-sm"}>
@@ -209,9 +196,6 @@ export default function TakeExam() {
               <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                 <Hash className="h-4 w-4 text-blue-500" />
                 Số câu hỏi <span className="text-red-500">*</span>
-                {loadingSubjectDetail && (
-                  <span className="text-xs text-gray-400 font-normal">(Đang tải số lượng câu hỏi...)</span>
-                )}
               </Label>
               <Input
                 type="number"
@@ -221,15 +205,13 @@ export default function TakeExam() {
                 placeholder={
                   !selectedSubject
                     ? "-- Vui lòng chọn môn học trước --"
-                    : loadingSubjectDetail
-                    ? "-- Đang tải dữ liệu môn học... --"
                     : availableQuestionCount === 0
                     ? "-- Môn học không có câu hỏi --"
                     : `Nhập số câu (tối đa ${availableQuestionCount} câu)`
                 }
                 value={numQuestions}
                 onChange={(e) => setNumQuestions(e.target.value)}
-                disabled={!selectedSubject || loadingSubjectDetail || availableQuestionCount === 0}
+                disabled={!selectedSubject || availableQuestionCount === 0}
                 className={`h-10 ${
                   questionValidationError
                     ? "border-red-500 focus-visible:ring-red-500 bg-red-50/40"
@@ -255,7 +237,7 @@ export default function TakeExam() {
               <Select
                 value={timeLimit}
                 onChange={(e) => setTimeLimit(e.target.value)}
-                disabled={!selectedSubject || loadingSubjectDetail || availableQuestionCount === 0}
+                disabled={!selectedSubject || availableQuestionCount === 0}
                 options={[
                   { value: "", label: "-- Chọn thời gian --" },
                   ...timeOptions,

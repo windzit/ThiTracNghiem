@@ -86,8 +86,8 @@ bool Subject::_remove(NodeMH*& node, const char MAMH[16]) {
     if (cmp < 0)
         return _remove(node->right, MAMH);
 
-    // BR-04: Khong cho xoa neu co cau hoi da duoc dung trong exam
-    if (node->data.dsCauHoi.hasUsedQuestions()) {
+    // BR-04: Khong cho xoa neu mon hoc da duoc su dung (used == true)
+    if (node->data.used) {
         return false;
     }
     // Thuc Hien Xoa
