@@ -3,7 +3,7 @@
 #include <fstream>
 #include <sstream>
 #include <cstring>
-#include "../include/Report.h"
+#include "Report.h"
 #include "../include/Subject.h"
 #include "../include/DArray.h"
 

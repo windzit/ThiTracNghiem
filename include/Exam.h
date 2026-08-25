@@ -25,6 +25,3 @@ int calculateRemainingSeconds(const ExamSession& session);
 
 // Downtime compensation on server startup
 void adjustSessionsForDowntime(std::time_t serverStartupTime);
-
-// Console exam function
-void ThiTracNghiem(Subject& dsmh, SinhVien* sv);

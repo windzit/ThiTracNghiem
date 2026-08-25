@@ -689,7 +689,10 @@ export default function ClassDetail() {
                   className="h-10"
                 />
                 {studentErrors.password && <p className="text-xs text-red-500">{studentErrors.password}</p>}
-                <p className="text-xs text-gray-400">Mặc định: 123</p>
+                <div className="space-y-0.5 text-xs">
+                  <p className="text-gray-400">Mặc định: 123</p>
+                  <p className="text-amber-600">Lưu ý: Mọi khoảng trắng ở đầu và cuối mật khẩu sẽ tự động được loại bỏ khi lưu.</p>
+                </div>
               </div>
             </form>
 

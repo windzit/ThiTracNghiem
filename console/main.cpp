@@ -1,7 +1,7 @@
 #include <iostream>
-#include "include/Menu.h"
-#include "include/Storage.h"
-#include "include/StorageManager.h"
+#include "Menu.h"
+#include "../include/Storage.h"
+#include "../include/StorageManager.h"
 
 int main() {
     Class dsl;

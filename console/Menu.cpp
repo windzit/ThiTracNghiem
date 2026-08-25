@@ -1,14 +1,35 @@
 #include <iostream>
 #include <limits>
-#include "../include/Menu.h"
+#include "Menu.h"
+#include "Report.h"
+#include "ConsoleExam.h"
 #include "../include/Auth.h"
-#include "../include/Report.h"
 #include "../include/Storage.h"
 #include "../include/StringNormalizer.h"
 #include "../include/Utils.h"
-#include "../include/Exam.h"
+#include "../include/IndexManager.h"
+#include "../include/StorageManager.h"
 
 // -- helpers --
+static bool login_student(dsLop &uis, const std::string &username, const std::string &password) {
+    for (int i = 0; i < uis.n; i++) {
+        if (uis.dslop[i] == nullptr) continue;
+        SinhVien* sv = uis.dslop[i]->dssinhvien.find(username);
+        if (sv) {
+            return (sv->passsword == password);
+        }
+    }
+    int64_t offset = -1;
+    if (IndexManager::getInstance().getStudentOffset(username, offset)) {
+        SinhVien sv;
+        std::string malop;
+        if (StorageManager::getInstance().readStudentAt(offset, sv, malop)) {
+            return (sv.passsword == password);
+        }
+    }
+    return false;
+}
+
 static void pressEnter() {
     std::cout << "\nNhan Enter de tiep tuc...";
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');

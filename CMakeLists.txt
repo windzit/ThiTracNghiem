@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include_directories(include)
+include_directories(console)
 include_directories(server)
 include_directories(server/handlers)
 
@@ -32,7 +33,6 @@ add_executable(server
     "src/Score.cpp"
     "src/Subject.cpp"
     "src/Question.cpp"
-    "src/Report.cpp"
     "src/Storage.cpp"
     "src/Exam.cpp"
     "src/Utils.cpp"
@@ -47,16 +47,20 @@ if (WIN32)
     target_link_libraries(server ws2_32)
 endif()
 
+# ============================================================
+# Target 2: Console Application
+# ============================================================
 add_executable(console
-    "main.cpp"
-    "src/Menu.cpp"
+    "console/main.cpp"
+    "console/Menu.cpp"
+    "console/Report.cpp"
+    "console/ConsoleExam.cpp"
     "src/Auth.cpp"
     "src/Class.cpp"
     "src/Student.cpp"
     "src/Score.cpp"
     "src/Subject.cpp"
     "src/Question.cpp"
-    "src/Report.cpp"
     "src/Storage.cpp"
     "src/Exam.cpp"
     "src/Utils.cpp"

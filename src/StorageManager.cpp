@@ -98,20 +98,20 @@ bool StorageManager::loadClasses(Class& dsl) {
 
         DArray<std::string> tokens = split(trimmed, '|');
         if (tokens.size() >= 2) {
-            std::string malop = trim(tokens[0]);
-            std::string tenlop = trim(tokens[1]);
+            std::string malop = tokens[0];
+            std::string tenlop = tokens[1];
             std::string status = tokens.size() >= 3 ? trim(tokens[2]) : "0";
             if (status == "1") {
                 s_deletedClassCount++;
                 continue; // Skip deleted class record
             }
 
-            if (!malop.empty() && !dsl.find(malop)) {
-                Lop* lop = new Lop();
-                lop->MALOP = malop;
-                lop->TENLOP = tenlop;
-                StringNormalizer::normalizeClass(*lop);
+            Lop* lop = new Lop();
+            lop->MALOP = malop;
+            lop->TENLOP = tenlop;
+            StringNormalizer::normalizeClass(*lop);
 
+            if (!lop->MALOP.empty() && !dsl.find(lop->MALOP)) {
                 std::string errReason;
                 if (!StorageValidator::validateClass(*lop, errReason)) {
                     std::cerr << "[StorageManager] Warning: Skipped invalid class on load: " << errReason << std::endl;
@@ -125,6 +125,8 @@ bool StorageManager::loadClasses(Class& dsl) {
                 } else {
                     delete lop;
                 }
+            } else {
+                delete lop;
             }
         }
     }
@@ -147,10 +149,10 @@ bool StorageManager::loadStudents(Class& dsl) {
         DArray<std::string> tokens = split(trimmed, '|');
         if (tokens.size() >= 5) {
             std::string malop = trim(tokens[0]);
-            std::string masv = trim(tokens[1]);
-            std::string ho = trim(tokens[2]);
-            std::string ten = trim(tokens[3]);
-            std::string phai = trim(tokens[4]);
+            std::string masv = tokens[1];
+            std::string ho = tokens[2];
+            std::string ten = tokens[3];
+            std::string phai = tokens[4];
             std::string pass = tokens.size() >= 6 ? trim(tokens[5]) : "";
             std::string status = tokens.size() >= 7 ? trim(tokens[6]) : "0";
             if (status == "1") {
@@ -198,22 +200,23 @@ bool StorageManager::loadSubjects(Subject& dsmh) {
 
         DArray<std::string> tokens = split(trimmed, '|');
         if (tokens.size() >= 2) {
-            std::string mamh = trim(tokens[0]);
-            std::string tenmh = trim(tokens[1]);
-            bool used = tokens.size() >= 3 ? (trim(tokens[2]) == "1" || trim(tokens[2]) == "true") : false;
+            std::string mamh = tokens[0];
+            std::string tenmh = tokens[1];
+            bool used = tokens.size() >= 3 ? (tokens[2] == "1" || tokens[2] == "true") : false;
             std::string status = tokens.size() >= 4 ? trim(tokens[3]) : "0";
             if (status == "1") {
                 s_deletedSubjectCount++;
                 continue; // Skip deleted subject record
             }
 
-            if (!mamh.empty() && !dsmh.find(mamh.c_str())) {
-                MonHoc mh;
-                std::strcpy(mh.MAMH, mamh.c_str());
-                mh.TENMH = tenmh;
-                mh.used = used;
-                StringNormalizer::normalizeSubject(mh);
+            MonHoc mh;
+            std::strncpy(mh.MAMH, mamh.c_str(), sizeof(mh.MAMH) - 1);
+            mh.MAMH[sizeof(mh.MAMH) - 1] = '\0';
+            mh.TENMH = tenmh;
+            mh.used = used;
+            StringNormalizer::normalizeSubject(mh);
 
+            if (mh.MAMH[0] != '\0' && !dsmh.find(mh.MAMH)) {
                 std::string errReason;
                 if (!StorageValidator::validateSubject(mh, errReason)) {
                     std::cerr << "[StorageManager] Warning: Skipped invalid subject on load: " << errReason << std::endl;
@@ -243,7 +246,7 @@ bool StorageManager::loadQuestions(Subject& dsmh) {
         DArray<std::string> tokens = split(trimmed, '|');
         if (tokens.size() >= 8) {
             std::string mamh = trim(tokens[0]);
-            int id = std::stoi(trim(tokens[1]));
+            int id = std::stoi(tokens[1]);
             if (id > cachedLastQuestionId) {
                 cachedLastQuestionId = id;
             }
@@ -252,7 +255,7 @@ bool StorageManager::loadQuestions(Subject& dsmh) {
             std::string b = tokens[4];
             std::string c = tokens[5];
             std::string d = tokens[6];
-            std::string dapan = trim(tokens[7]);
+            std::string dapan = tokens[7];
             bool used = false;
             std::string status = tokens.size() >= 9 ? trim(tokens[8]) : "0";
             if (status == "1") {
@@ -322,7 +325,7 @@ bool StorageManager::loadScores(Class& dsl) {
         if (tokens.size() >= 3) {
             std::string masv = trim(tokens[0]);
             std::string mamh = trim(tokens[1]);
-            float diem = std::stof(trim(tokens[2]));
+            float diem = std::stof(tokens[2]);
 
             SinhVien** svPtr = svMap.find(masv);
             if (svPtr && *svPtr) {

@@ -531,6 +531,9 @@ Thao tác này không thể hoàn tác.`,
               onChange={(e) => setFormPassword(e.target.value)}
               className="h-10"
             />
+            <p className="text-xs text-amber-600">
+              Lưu ý: Mọi khoảng trắng ở đầu và cuối mật khẩu sẽ tự động được loại bỏ khi lưu.
+            </p>
           </div>
         </div>
       </Drawer>
