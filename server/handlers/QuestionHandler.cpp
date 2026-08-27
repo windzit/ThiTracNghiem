@@ -48,15 +48,23 @@ void handle_create_question(const httplib::Request& req, httplib::Response& res)
         checkPtr = checkPtr->next;
     }
 
-    ch.ID = 0;
+    ch.ID = StorageManager::getInstance().getNextQuestionID();
 
-    if (node->data.dsCauHoi.insert(ch, true)) {
+    if (node->data.dsCauHoi.insert(ch)) {
         int64_t outOffset = -1;
         StorageManager::getInstance().appendQuestion(ch, mamh, outOffset);
         json_response(res, {{"id",ch.ID},{"mamh",mamh},{"noidung",ch.NOIDUNG},
             {"a",ch.A},{"b",ch.B},{"c",ch.C},{"d",ch.D},{"dapan",dapan},{"used",false},{"deleted",false}}, 201);
     } else { error_response(res, "Failed to create question", 500); }
 }
+
+
+
+
+
+
+
+
 
 void handle_update_question(const httplib::Request& req, httplib::Response& res) {
     DB_WRITE_LOCK;
@@ -111,6 +119,14 @@ void handle_update_question(const httplib::Request& req, httplib::Response& res)
             {"dapan",dapan},{"used",found->cauhoi.used},{"deleted",found->cauhoi.deleted}});
     } else { error_response(res, "Failed to update question (may be used)", 422); }
 }
+
+
+
+
+
+
+
+
 
 void handle_delete_question(const httplib::Request& req, httplib::Response& res) {
     DB_WRITE_LOCK;
@@ -182,13 +198,24 @@ void handle_delete_question(const httplib::Request& req, httplib::Response& res)
     if (hasOffset) {
         StorageManager::getInstance().markQuestionStatusAt(offset, targetStatus);
         if (targetStatus == STATUS_DELETED) {
-            IndexManager::getInstance().removeQuestionOffset(id);
             IndexManager::getInstance().removeQuestionSubject(id);
+            IndexManager::getInstance().removeQuestionOffset(id);
         }
     }
 
     json_response(res, {{"id", id}, {"mamh", mamh}, {"mode", mode}});
 }
+
+
+
+
+
+
+
+
+
+
+
 
 void handle_bulk_delete_questions(const httplib::Request& req, httplib::Response& res) {
     DB_WRITE_LOCK;
@@ -244,8 +271,8 @@ void handle_bulk_delete_questions(const httplib::Request& req, httplib::Response
                 if (node->data.dsCauHoi.removeNode(id)) {
                     if (hasOffset) {
                         StorageManager::getInstance().markQuestionStatusAt(offset, STATUS_DELETED);
-                        IndexManager::getInstance().removeQuestionOffset(id);
                         IndexManager::getInstance().removeQuestionSubject(id);
+                        IndexManager::getInstance().removeQuestionOffset(id);
                     }
                     hardDeletedCount++;
                     affectedSubjects.insert(mamh);
@@ -262,6 +289,15 @@ void handle_bulk_delete_questions(const httplib::Request& req, httplib::Response
         {"hardDeletedCount", hardDeletedCount}
     });
 }
+
+
+
+
+
+
+
+
+
 
 void handle_restore_question(const httplib::Request& req, httplib::Response& res) {
     DB_WRITE_LOCK;

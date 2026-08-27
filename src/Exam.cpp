@@ -42,18 +42,5 @@ int calculateRemainingSeconds(const ExamSession& session) {
 }
 
 void adjustSessionsForDowntime(std::time_t serverStartupTime) {
-    // Load all active exam sessions from flat file via StorageManager
-    DArray<ExamSession> sessions;
-    if (!StorageManager::getInstance().loadExamSessions(sessions)) return;
-
-    for (const auto& s : sessions) {
-        if (s.in_progress && s.lastServerActivityAt > 0 && serverStartupTime > s.lastServerActivityAt) {
-            std::time_t downtimeGap = serverStartupTime - s.lastServerActivityAt;
-            ExamSession updated = s;
-            updated.thoiGianBatDau += downtimeGap;
-            updated.lastServerActivityAt = serverStartupTime;
-            saveExamSession(updated);
-            std::cout << "[ExamDowntime] Compensated " << downtimeGap << "s downtime for MASV: " << updated.MASV << "\n";
-        }
-    }
+    StorageManager::getInstance().adjustDowntime(serverStartupTime);
 }

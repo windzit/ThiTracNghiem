@@ -284,7 +284,7 @@ bool StorageManager::loadQuestions(Subject& dsmh) {
                     continue;
                 }
 
-                if (node->data.dsCauHoi.insert(q, false)) {
+                if (node->data.dsCauHoi.insert(q)) {
                     IndexManager::getInstance().updateQuestionSubject(q.ID, mamh);
                 }
             }
@@ -294,7 +294,7 @@ bool StorageManager::loadQuestions(Subject& dsmh) {
     return true;
 }
 
-bool StorageManager::loadScores(Class& dsl) {
+bool StorageManager::loadScores(Class& dsl) { 
     std::string filePath = PathResolver::getFilePath("scores.txt");
     std::ifstream file(filePath);
     if (!file.is_open()) return false;
@@ -340,8 +340,8 @@ bool StorageManager::loadScores(Class& dsl) {
     return true;
 }
 
-bool StorageManager::loadExamSessions(DArray<ExamSession>& sessions) {
-    sessions.clear();
+bool StorageManager::loadExamSessions() {
+    cachedExamSessions.clear();
     std::string filePath = PathResolver::getFilePath("exam_sessions.txt");
     std::ifstream file(filePath);
     if (!file.is_open()) return false;
@@ -380,12 +380,11 @@ bool StorageManager::loadExamSessions(DArray<ExamSession>& sessions) {
             }
 
             if (s.in_progress) {
-                sessions.push_back(s);
+                cachedExamSessions.push_back(s);
             }
         }
     }
     file.close();
-    cachedExamSessions = sessions;
     return true;
 }
 
@@ -474,7 +473,7 @@ bool StorageManager::loadAllData(Class& dsl, Subject& dsmh) {
     std::cout << "[STARTUP LOG] [END] loadScores\n";
     
     std::cout << "[STARTUP LOG] [BEGIN] loadExamSessions\n";
-    loadExamSessions(cachedExamSessions);
+    loadExamSessions();
     std::cout << "[STARTUP LOG] [END] loadExamSessions\n";
 
     std::cout << "[STARTUP LOG] [BEGIN] Rebuild derived 'used' flags\n";
@@ -493,7 +492,6 @@ bool StorageManager::loadAllData(Class& dsl, Subject& dsmh) {
 bool StorageManager::saveClasses(Class& dsl) {
     std::ostringstream ss;
     ss << "MALOP          |TENLOP                                            |S\n";
-    int validCount = 0;
     dsLop* root = dsl.getRoot();
     if (root) {
         for (int i = 0; i < root->n; i++) {
@@ -506,7 +504,6 @@ bool StorageManager::saveClasses(Class& dsl) {
                 ss << std::left << std::setw(15) << root->dslop[i]->MALOP << '|'
                    << std::setw(50) << root->dslop[i]->TENLOP << '|'
                    << STATUS_ACTIVE << '\n';
-                validCount++;
             }
         }
     }
@@ -522,7 +519,6 @@ bool StorageManager::saveClasses(Class& dsl) {
 bool StorageManager::saveStudents(Class& dsl) {
     std::ostringstream ss;
     ss << "MALOP          |MASV      |HO                                                |TEN            |PHAI|PASSWORD                        |S\n";
-    int validCount = 0;
     dsLop* root = dsl.getRoot();
     if (root) {
         for (int i = 0; i < root->n; i++) {
@@ -543,7 +539,6 @@ bool StorageManager::saveStudents(Class& dsl) {
                    << std::setw(4)  << sv.PHAI << '|'
                    << std::setw(32) << sv.passsword << '|'
                    << STATUS_ACTIVE << '\n';
-                validCount++;
                 cur = cur->next;
             }
         }
@@ -556,9 +551,9 @@ bool StorageManager::saveStudents(Class& dsl) {
     return true;
 }
 
-static bool validateAndCollectSubjects(NodeMH* node, std::ostringstream& subjSS, int& subjectCount, std::string& errReason) {
+static bool validateAndCollectSubjects(NodeMH* node, std::ostringstream& subjSS, std::string& errReason) {
     if (!node) return true;
-    if (!validateAndCollectSubjects(node->left, subjSS, subjectCount, errReason)) return false;
+    if (!validateAndCollectSubjects(node->left, subjSS, errReason)) return false;
 
     const MonHoc& mh = node->data;
     if (!StorageValidator::validateSubject(mh, errReason)) return false;
@@ -566,14 +561,13 @@ static bool validateAndCollectSubjects(NodeMH* node, std::ostringstream& subjSS,
            << std::setw(50) << mh.TENMH << '|'
            << (mh.used ? '1' : '0') << '|'
            << STATUS_ACTIVE << '\n';
-    subjectCount++;
 
-    return validateAndCollectSubjects(node->right, subjSS, subjectCount, errReason);
+    return validateAndCollectSubjects(node->right, subjSS, errReason);
 }
 
-static bool validateAndCollectQuestions(NodeMH* node, std::ostringstream& questSS, int& questionCount, std::string& errReason) {
+static bool validateAndCollectQuestions(NodeMH* node, std::ostringstream& questSS, std::string& errReason) {
     if (!node) return true;
-    if (!validateAndCollectQuestions(node->left, questSS, questionCount, errReason)) return false;
+    if (!validateAndCollectQuestions(node->left, questSS, errReason)) return false;
 
     const MonHoc& mh = node->data;
     dsCHT* qNode = mh.dsCauHoi.getRoot();
@@ -590,20 +584,18 @@ static bool validateAndCollectQuestions(NodeMH* node, std::ostringstream& questS
                 << std::setw(100) << q.D << '|'
                 << q.DAPAN_DUNG << '|'
                 << st << '\n';
-        questionCount++;
         qNode = qNode->next;
     }
 
-    return validateAndCollectQuestions(node->right, questSS, questionCount, errReason);
+    return validateAndCollectQuestions(node->right, questSS, errReason);
 }
 
 bool StorageManager::saveSubjects(Subject& dsmh) {
     std::ostringstream subjSS;
     subjSS << "MAMH           |TENMH                                             |U|S\n";
-    int subjectCount = 0;
     std::string errReason;
 
-    if (!validateAndCollectSubjects(dsmh.getRoot(), subjSS, subjectCount, errReason)) {
+    if (!validateAndCollectSubjects(dsmh.getRoot(), subjSS, errReason)) {
         std::cerr << "[StorageValidation] Subject validation failed: " << errReason << std::endl;
         return false;
     }
@@ -619,10 +611,9 @@ bool StorageManager::saveSubjects(Subject& dsmh) {
 bool StorageManager::saveQuestions(Subject& dsmh) {
     std::ostringstream questSS;
     questSS << std::left << std::setfill(' ') << std::setw(15) << "MAMH" << '|' << std::right << std::setfill(' ') << std::setw(10) << "ID" << '|' << std::left << std::setfill(' ') << std::setw(300) << "NOIDUNG" << '|' << std::setw(100) << "A" << '|' << std::setw(100) << "B" << '|' << std::setw(100) << "C" << '|' << std::setw(100) << "D" << '|' << "A" << '|' << "S" << '\n';
-    int questionCount = 0;
     std::string errReason;
 
-    if (!validateAndCollectQuestions(dsmh.getRoot(), questSS, questionCount, errReason)) {
+    if (!validateAndCollectQuestions(dsmh.getRoot(), questSS, errReason)) {
         std::cerr << "[StorageValidation] Question validation failed: " << errReason << std::endl;
         return false;
     }
@@ -638,7 +629,6 @@ bool StorageManager::saveQuestions(Subject& dsmh) {
 bool StorageManager::saveScores(Class& dsl) {
     std::ostringstream ss;
     ss << "MASV|MAMH|DIEM\n";
-    int scoreCount = 0;
     dsLop* root = dsl.getRoot();
     if (root) {
         for (int i = 0; i < root->n; i++) {
@@ -658,7 +648,6 @@ bool StorageManager::saveScores(Class& dsl) {
                     ss << sv.MASV << '|'
                        << dt.MAMH << '|'
                        << dt.DIEM << '\n';
-                    scoreCount++;
                     curScore = curScore->next;
                 }
                 curSV = curSV->next;
@@ -690,7 +679,6 @@ bool StorageManager::appendScore(const std::string& masv, const std::string& mam
 static bool flushExamSessionsFile() {
     std::ostringstream ss;
     ss << "MASV|MAMH|THOIGIAN_BATDAU|TONGPHUT|IN_PROGRESS|LAST_ACT|QUESTION_IDS|ANSWERS\n";
-    int activeCount = 0;
     for (const auto& s : cachedExamSessions) {
         if (!s.in_progress) continue;
         ss << s.MASV << '|'
@@ -713,7 +701,6 @@ static bool flushExamSessionsFile() {
             if (i + 1 < s.answers.size()) ss << ',';
         }
         ss << '\n';
-        activeCount++;
     }
     std::string targetPath = PathResolver::getFilePath("exam_sessions.txt");
     return StorageManager::atomicWriteFile(targetPath, ss.str());
@@ -746,6 +733,22 @@ bool StorageManager::removeExamSession(const std::string& masv) {
         }
     }
     return flushExamSessionsFile();
+}
+
+void StorageManager::adjustDowntime(std::time_t serverStartupTime) {
+    bool hasChanges = false;
+    for (auto& s : cachedExamSessions) {
+        if (s.in_progress && s.lastServerActivityAt > 0 && serverStartupTime > s.lastServerActivityAt) {
+            std::time_t downtimeGap = serverStartupTime - s.lastServerActivityAt;
+            s.thoiGianBatDau += downtimeGap;
+            s.lastServerActivityAt = serverStartupTime;
+            hasChanges = true;
+            std::cout << "[ExamDowntime] Compensated " << downtimeGap << "s downtime for MASV: " << s.MASV << "\n";
+        }
+    }
+    if (hasChanges) {
+        flushExamSessionsFile();
+    }
 }
 
 bool StorageManager::appendExamHistory(const ExamSession& session, float diem) {
@@ -814,8 +817,6 @@ bool StorageManager::appendExamHistory(const ExamSession& session, float diem) {
 }
 
 bool StorageManager::resetToDefault() {
-    namespace fs = std::filesystem;
-
     // 1. Auto-backup: storage/ → storage_backup_reset_<timestamp>/
     std::string storageDir = PathResolver::getStorageDir();
     if (!fs::exists(storageDir)) {
@@ -1140,8 +1141,8 @@ bool StorageManager::appendQuestion(const CauHoi& q, const std::string& mamh, in
     file.flush();
     file.close();
 
-    IndexManager::getInstance().updateQuestionOffset(q.ID, outOffset);
     IndexManager::getInstance().updateQuestionSubject(q.ID, mamh);
+    IndexManager::getInstance().updateQuestionOffset(q.ID, outOffset);
     return true;
 }
 

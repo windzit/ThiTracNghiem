@@ -675,6 +675,143 @@ bool runFullEFTestSuite() {
         std::cerr << "[FAIL] TC_S06: Atomic File Overwrite failed (w1=" << w1 << ", w2=" << w2 << ", read='" << readContent << "').\n";
     }
 
+    // --- [GROUP 4: STORAGE LOADERS & OPTIMIZATION VERIFICATION] ---
+    // TC_L01: loadClasses verification
+    total++;
+    Class testDsl;
+    bool classLoaded = StorageManager::getInstance().loadClasses(testDsl);
+    dsLop* dslRoot = testDsl.getRoot();
+    bool classOk = classLoaded && dslRoot != nullptr && dslRoot->n > 0;
+    if (classOk) {
+        for (int i = 0; i < dslRoot->n; i++) {
+            if (!dslRoot->dslop[i] || dslRoot->dslop[i]->MALOP.empty() || dslRoot->dslop[i]->TENLOP.empty()) {
+                classOk = false; break;
+            }
+        }
+    }
+    if (classOk) {
+        std::cout << "[PASS] TC_L01: StorageManager loadClasses verified (" << dslRoot->n << " classes parsed and normalized).\n";
+        passed++;
+    } else {
+        std::cerr << "[FAIL] TC_L01: StorageManager loadClasses failed.\n";
+    }
+
+    // TC_L02: loadStudents verification (including password trim & normalization)
+    total++;
+    bool studentLoaded = StorageManager::getInstance().loadStudents(testDsl);
+    int totalStudentsLoaded = 0;
+    bool passClean = true;
+    if (studentLoaded && dslRoot) {
+        for (int i = 0; i < dslRoot->n; i++) {
+            Lop* lop = dslRoot->dslop[i];
+            if (!lop) continue;
+            dsSinhVien* cur = lop->dssinhvien.getRoot();
+            while (cur) {
+                totalStudentsLoaded++;
+                if (cur->sinhvien.passsword.find(' ') != std::string::npos || cur->sinhvien.passsword.empty()) {
+                    passClean = false;
+                }
+                cur = cur->next;
+            }
+        }
+    }
+    if (studentLoaded && totalStudentsLoaded > 0 && passClean) {
+        std::cout << "[PASS] TC_L02: StorageManager loadStudents verified (" << totalStudentsLoaded << " students loaded, passwords trimmed).\n";
+        passed++;
+    } else {
+        std::cerr << "[FAIL] TC_L02: StorageManager loadStudents failed (students=" << totalStudentsLoaded << ", passClean=" << passClean << ").\n";
+    }
+
+    // TC_L03: loadSubjects verification
+    total++;
+    Subject testDsmh;
+    bool subjLoaded = StorageManager::getInstance().loadSubjects(testDsmh);
+    bool subjFound = (testDsmh.find("INT1339") != nullptr);
+    if (subjLoaded && subjFound && testDsmh.size() > 0) {
+        std::cout << "[PASS] TC_L03: StorageManager loadSubjects verified (" << testDsmh.size() << " subjects parsed, INT1339 found).\n";
+        passed++;
+    } else {
+        std::cerr << "[FAIL] TC_L03: StorageManager loadSubjects failed.\n";
+    }
+
+    // TC_L04: loadQuestions verification (Fixed-length DAPAN and ID parsing)
+    total++;
+    bool qLoaded = StorageManager::getInstance().loadQuestions(testDsmh);
+    NodeMH* nodeInt = testDsmh.find("INT1339");
+    bool qOk = qLoaded && nodeInt != nullptr && nodeInt->data.dsCauHoi.size() >= 10;
+    if (qOk) {
+        dsCHT* firstQ = nodeInt->data.dsCauHoi.getRoot();
+        if (!firstQ || firstQ->cauhoi.ID <= 0 || firstQ->cauhoi.NOIDUNG.empty() || firstQ->cauhoi.DAPAN_DUNG == '\0') {
+            qOk = false;
+        }
+    }
+    if (qOk) {
+        std::cout << "[PASS] TC_L04: StorageManager loadQuestions verified (Questions loaded, 1-byte DAPAN & IDs accurate).\n";
+        passed++;
+    } else {
+        std::cerr << "[FAIL] TC_L04: StorageManager loadQuestions failed.\n";
+    }
+
+    // TC_L05: loadScores verification (std::stof parsing)
+    total++;
+    bool scoresLoaded = StorageManager::getInstance().loadScores(testDsl);
+    int totalScores = 0;
+    bool scoresRangeOk = true;
+    if (scoresLoaded && dslRoot) {
+        for (int i = 0; i < dslRoot->n; i++) {
+            Lop* lop = dslRoot->dslop[i];
+            if (!lop) continue;
+            dsSinhVien* cur = lop->dssinhvien.getRoot();
+            while (cur) {
+                dsDiemThi* curDiem = cur->sinhvien.dsdiemthi.getRoot();
+                while (curDiem) {
+                    totalScores++;
+                    if (curDiem->diemthi.DIEM < 0.0f || curDiem->diemthi.DIEM > 10.0f) {
+                        scoresRangeOk = false;
+                    }
+                    curDiem = curDiem->next;
+                }
+                cur = cur->next;
+            }
+        }
+    }
+    if (scoresLoaded && totalScores > 0 && scoresRangeOk) {
+        std::cout << "[PASS] TC_L05: StorageManager loadScores verified (" << totalScores << " scores parsed via std::stof, all valid 0-10.0).\n";
+        passed++;
+    } else {
+        std::cerr << "[FAIL] TC_L05: StorageManager loadScores failed.\n";
+    }
+
+    // TC_L06: adjustDowntime In-Memory & Single Flush verification
+    total++;
+    ExamSession mockSession;
+    mockSession.MASV = "TEST_DOWNTIME_999";
+    mockSession.MAMH = "INT1339";
+    mockSession.thoiGianBatDau = 1000;
+    mockSession.tongThoiGianPhut = 60;
+    mockSession.in_progress = true;
+    mockSession.lastServerActivityAt = 1000;
+    mockSession.questionIds.push_back(1);
+    mockSession.answers.push_back('A');
+    StorageManager::getInstance().saveExamSession(mockSession);
+
+    // Simulate 300s server downtime
+    StorageManager::getInstance().adjustDowntime(1300);
+
+    ExamSession adjustedSession;
+    bool findAdjusted = loadExamSession("TEST_DOWNTIME_999", adjustedSession);
+    bool downtimeOk = findAdjusted && adjustedSession.thoiGianBatDau == 1300 && adjustedSession.lastServerActivityAt == 1300;
+
+    // Clean up mock session
+    removeExamSession("TEST_DOWNTIME_999");
+
+    if (downtimeOk) {
+        std::cout << "[PASS] TC_L06: StorageManager adjustDowntime verified (Compensated 300s downtime on RAM & flushed).\n";
+        passed++;
+    } else {
+        std::cerr << "[FAIL] TC_L06: StorageManager adjustDowntime failed.\n";
+    }
+
     std::cout << "\n============================================================\n";
     std::cout << "=== FULL E & F TEST SUITE SUMMARY: " << passed << "/" << total << " PASSED ===\n";
     std::cout << "============================================================\n";

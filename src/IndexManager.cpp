@@ -360,12 +360,6 @@ bool IndexManager::loadQuestionIndex() {
     }
     file.close();
 
-    // If question.idx is missing 3rd column MAMH mapping (legacy 2-column index) or had parse errors, trigger rebuild
-    if (m_questionSubjectIndex.empty() && !m_questionIndex.empty()) {
-        std::cout << "  [*] Question Index  : Upgrade 2-column -> 3-column index (SCHEMA 2.0)...\n";
-        return rebuildQuestionIndex() && saveQuestionIndex();
-    }
-
     if (!validIndex) {
         std::cout << "  [*] Question Index  : Parse warning -> Rebuilding question.idx...\n";
         return rebuildQuestionIndex() && saveQuestionIndex();

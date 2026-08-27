@@ -155,8 +155,8 @@ void handle_delete_subject(const httplib::Request& req, httplib::Response& res) 
             int64_t qOffset = -1;
             if (IndexManager::getInstance().getQuestionOffset(qId, qOffset)) {
                 StorageManager::getInstance().markQuestionStatusAt(qOffset, STATUS_DELETED);
-                IndexManager::getInstance().removeQuestionOffset(qId);
                 IndexManager::getInstance().removeQuestionSubject(qId);
+                IndexManager::getInstance().removeQuestionOffset(qId);
             }
         }
         res.status = 204;

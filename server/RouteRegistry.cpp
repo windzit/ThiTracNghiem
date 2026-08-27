@@ -48,8 +48,6 @@ void registerRoutes(httplib::Server& svr) {
     svr.Post("/api/logout", wrap_safe(handle_logout));
 
     // Admin / System
-    svr.Post("/api/admin/save", wrap_safe(handle_admin_save));
-    svr.Post("/api/admin/rebuild-used", wrap_safe(handle_rebuild_used));
     svr.Get("/api/system/settings", wrap_safe(handle_get_system_settings));
     svr.Post("/api/system/settings", wrap_safe(handle_post_system_settings));
 

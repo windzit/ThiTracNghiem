@@ -31,9 +31,6 @@ public:
     bool remove(const char* MAMH);
     dsDiemThi* find(const char* MAMH);
     const dsDiemThi* find(const char* MAMH) const;
-    
-    bool save(const std::string& MASV);
-    bool load(const std::string& MASV);
     int count() const;
     bool empty() const;
     dsDiemThi* getRoot() const { return root; }

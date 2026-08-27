@@ -17,7 +17,6 @@ void handle_get_students(const httplib::Request& req, httplib::Response& res) {
     json arr = json::array();
     dsSinhVien* cur = lop->dssinhvien.getRoot();
     while (cur) {
-        cur->sinhvien.dsdiemthi.load(cur->sinhvien.MASV);
         int examCount = cur->sinhvien.dsdiemthi.count();
         arr.push_back({
             {"masv", cur->sinhvien.MASV},
@@ -39,7 +38,6 @@ void handle_get_student_by_id(const httplib::Request& req, httplib::Response& re
     Lop* foundLop = nullptr;
     SinhVien* sv = findStudentGlobal(masv, &foundLop);
     if (sv && foundLop) {
-        sv->dsdiemthi.load(sv->MASV);
         int examCount = sv->dsdiemthi.count();
         json scoresArr = json::array();
         dsDiemThi* node = sv->dsdiemthi.getRoot();
@@ -133,7 +131,6 @@ void handle_update_student(const httplib::Request& req, httplib::Response& res) 
         if (IndexManager::getInstance().getStudentOffset(masv, offset)) {
             StorageManager::getInstance().writeStudentAt(offset, newData, foundLop->MALOP);
         }
-        sv->dsdiemthi.load(sv->MASV);
         int examCount = sv->dsdiemthi.count();
         json_response(res, {{"masv",sv->MASV},{"ho",sv->HO},{"ten",sv->TEN},{"phai",sv->PHAI},{"malop",foundLop->MALOP},{"examCount",examCount}});
     } else { error_response(res, "Failed to update student", 500); }
@@ -146,7 +143,6 @@ void handle_delete_student(const httplib::Request& req, httplib::Response& res) 
     SinhVien* sv = findStudentGlobal(masv, &foundLop);
     if (!sv || !foundLop) { error_response(res, "Student not found", 404); return; }
 
-    sv->dsdiemthi.load(masv);
     if (!sv->dsdiemthi.empty()) {
         custom_json_response(res, {
             {"success", false},
@@ -198,7 +194,6 @@ void handle_bulk_delete_students(const httplib::Request& req, httplib::Response&
             error_response(res, "Student " + masv + " not found", 404);
             return;
         }
-        sv->dsdiemthi.load(masv);
         if (!sv->dsdiemthi.empty()) {
             custom_json_response(res, {
                 {"success", false},

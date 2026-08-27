@@ -1,4 +1,4 @@
-import { reportService } from "@/entities/report/reportService"
+import { studentService } from "@/entities/student/studentService"
 
 export interface StudentStats {
   totalExams: number
@@ -12,11 +12,10 @@ export interface StudentStats {
 }
 
 export const resultService = {
-  getStudentStats: async (malop: string, masv: string): Promise<StudentStats> => {
+  getStudentStats: async (_malop: string, masv: string): Promise<StudentStats> => {
     try {
-      const res = await reportService.getScoreboard(malop)
-      const student = res.students?.find((s) => s.masv === masv)
-      if (!student || !student.scores) {
+      const student = await studentService.getById(masv)
+      if (!student || !student.scores || student.scores.length === 0) {
         return {
           totalExams: 0,
           takenExams: 0,
@@ -32,24 +31,20 @@ export const resultService = {
         }
       }
 
-      const entries = Object.entries(student.scores)
-      const totalExams = entries.length
-      const taken = entries.filter(([_, score]) => score !== null) as [string, number][]
-      const takenExams = taken.length
-      const passedExams = taken.filter(([_, s]) => s >= 5.0).length
+      const scoresList = student.scores.map((s) => ({ mamh: s.subjectCode, score: s.score }))
+      const takenExams = scoresList.length
+      const passedExams = scoresList.filter((s) => s.score >= 5.0).length
       const failedExams = takenExams - passedExams
-      const notTaken = totalExams - takenExams
-      const sum = taken.reduce((acc, [_, s]) => acc + s, 0)
+      const sum = scoresList.reduce((acc, s) => acc + s.score, 0)
       const avg = takenExams > 0 ? sum / takenExams : 0
 
-      const scoresList = taken.map(([mamh, score]) => ({ mamh, score }))
       const chartData = [
         { name: "Đạt (≥5.0)", value: passedExams, color: "#10B981" },
         { name: "Chưa đạt (<5.0)", value: failedExams, color: "#EF4444" },
       ]
 
       return {
-        totalExams,
+        totalExams: takenExams,
         takenExams,
         passedExams,
         failedExams,

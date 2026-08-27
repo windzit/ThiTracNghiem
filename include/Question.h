@@ -35,7 +35,7 @@ public:
         clear();
     };
 
-    bool insert(CauHoi& cauhoi, bool autoId = false);
+    bool insert(const CauHoi& cauhoi);
     bool removeNode(int ID);   // Physical removal (hard delete)
     bool setDeleted(int ID);   // Soft delete: set deleted=true
     bool restoreDeleted(int ID); // Restore soft deleted: set deleted=false

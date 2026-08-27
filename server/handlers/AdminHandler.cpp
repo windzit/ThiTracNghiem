@@ -4,10 +4,6 @@
 
 using namespace std;
 
-void handle_admin_save(const httplib::Request&, httplib::Response& res) {
-    json_response(res, {{"message", "All storage data saved successfully"}});
-}
-
 void handle_get_system_settings(const httplib::Request& req, httplib::Response& res) {
     DB_READ_LOCK;
     json_response(res, {{"fullscreenRequired", g_fullscreenRequired}});
@@ -26,10 +22,4 @@ void handle_post_system_settings(const httplib::Request& req, httplib::Response&
     }
     g_fullscreenRequired = required;
     json_response(res, {{"fullscreenRequired", g_fullscreenRequired}});
-}
-
-void handle_rebuild_used(const httplib::Request&, httplib::Response& res) {
-    DB_WRITE_LOCK;
-    StorageManager::getInstance().rebuildUsedFlags(dsmh, &dsl);
-    json_response(res, {{"message", "Used flags rebuilt successfully"}});
 }

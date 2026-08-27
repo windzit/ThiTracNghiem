@@ -157,11 +157,3 @@ int Score::count() const {
 bool Score::empty() const {
     return root == nullptr;
 }
-
-bool Score::save(const std::string& MASV) {
-    return true;
-}
-
-bool Score::load(const std::string& MASV) {
-    return true;
-}

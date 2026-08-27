@@ -1,10 +1,10 @@
-﻿import { useState, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { FileText, Eye, CheckCircle2, Clock, AlertTriangle, BookOpen } from "lucide-react"
 import StudentLayout from "@/widgets/layouts/StudentLayout"
 import { Button } from "@/shared/ui/button"
 import { authService } from "@/entities/session/authService"
-import { reportService } from "@/entities/report/reportService"
+import { studentService } from "@/entities/student/studentService"
 import { subjectService } from "@/entities/subject/subjectService"
 
 interface StudentExamResult {
@@ -35,19 +35,16 @@ export default function ExamHistory() {
           map[s.code] = s.name
         })
 
-        // Load student scores via scoreboard API
-        reportService
-          .getScoreboard(malop)
-          .then((res) => {
-            const me = res.students?.find((s) => s.masv === masv)
-            if (me && me.scores) {
-              const takenList: StudentExamResult[] = Object.entries(me.scores)
-                .filter(([_, score]) => score !== null && score !== undefined)
-                .map(([mamh, score]) => ({
-                  mamh,
-                  tenmh: map[mamh] || mamh,
-                  score: score as number,
-                }))
+        // Load student scores directly via O(1) findStudentGlobal endpoint
+        studentService
+          .getById(masv)
+          .then((student) => {
+            if (student && student.scores && student.scores.length > 0) {
+              const takenList: StudentExamResult[] = student.scores.map((s) => ({
+                mamh: s.subjectCode,
+                tenmh: s.subjectName || map[s.subjectCode] || s.subjectCode,
+                score: s.score,
+              }))
               setTakenExams(takenList)
             } else {
               setTakenExams([])
@@ -55,7 +52,7 @@ export default function ExamHistory() {
             setLoading(false)
           })
           .catch((err: any) => {
-            console.error("[ExamHistory] error loading scores:", err)
+            console.error("[ExamHistory] error loading student scores:", err)
             setErrorMsg(err?.response?.data?.message || err?.message || "Không thể tải lịch sử điểm thi")
             setTakenExams([])
             setLoading(false)

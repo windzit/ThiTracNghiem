@@ -213,7 +213,7 @@ static void gvQuestionMenu(Subject& dsmh) {
                 continue;
             }
             CauHoi ch;
-            ch.ID = 0; // auto-increment
+            ch.ID = StorageManager::getInstance().getNextQuestionID();
             std::cin.ignore();
             std::cout << "  NOIDUNG: "; std::getline(std::cin, ch.NOIDUNG);
             std::cout << "  A: "; std::getline(std::cin, ch.A);
@@ -221,7 +221,7 @@ static void gvQuestionMenu(Subject& dsmh) {
             std::cout << "  C: "; std::getline(std::cin, ch.C);
             std::cout << "  D: "; std::getline(std::cin, ch.D);
             std::cout << "  DAPAN_DUNG (A/B/C/D): "; std::cin >> ch.DAPAN_DUNG;
-            if (node->data.dsCauHoi.insert(ch, true))
+            if (node->data.dsCauHoi.insert(ch))
                 std::cout << "Them cau hoi thanh cong (ID=" << ch.ID << ").\n";
             else
                 std::cout << "Loi: them cau hoi that bai.\n";

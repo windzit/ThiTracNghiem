@@ -1,5 +1,4 @@
 #include "../include/Question.h"
-#include "../include/StorageManager.h"
 
 Question::Question(const Question &other) {
   root = nullptr;
@@ -63,10 +62,7 @@ void Question::swap(Question& other) {
   other.activeCount = tmpActive;
 }
 
-bool Question::insert(CauHoi &cauhoi, bool autoId) {
-    if (autoId) {
-        cauhoi.ID = StorageManager::getInstance().getNextQuestionID();
-    }
+bool Question::insert(const CauHoi &cauhoi) {
     // 1. Danh sách rỗng: node mới vừa là root vừa là tail
     if (!root) {
         root = tail = new dsCHT(cauhoi);
@@ -87,10 +83,10 @@ bool Question::insert(CauHoi &cauhoi, bool autoId) {
 
 
 bool Question::removeNode(int ID) {
-  // Physical removal (hard delete) — no used check, no soft delete
   if (root == nullptr)
     return false;
 
+  // 1. Nếu node cần xóa là node đầu (root)
   if (root->cauhoi.ID == ID) {
     dsCHT *temp = root;
     root = root->next;
@@ -106,15 +102,13 @@ bool Question::removeNode(int ID) {
   dsCHT *temp = root;
   dsCHT *pre = nullptr;
 
-  while (temp != nullptr) {
-    if (temp->cauhoi.ID == ID) {
-      break;
-    }
+  while (temp != nullptr && temp->cauhoi.ID < ID) {
     pre = temp;
     temp = temp->next;
   }
 
-  if (temp == nullptr)
+
+  if (temp == nullptr || temp->cauhoi.ID != ID)
     return false;
 
   pre->next = temp->next;
@@ -127,6 +121,7 @@ bool Question::removeNode(int ID) {
   listSize--;
   return true;
 }
+
 
 bool Question::setDeleted(int ID) {
   // Soft delete: set deleted=true, node remains in memory

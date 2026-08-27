@@ -32,8 +32,9 @@ public:
     bool saveScores(Class& dsl);
     bool appendScore(const std::string& masv, const std::string& mamh, float diem);
 
-    bool loadExamSessions(DArray<ExamSession>& sessions);
+    bool loadExamSessions();
     const DArray<ExamSession>& getCachedExamSessions() const;
+    void adjustDowntime(std::time_t serverStartupTime);
     bool saveExamSession(const ExamSession& session);
     bool removeExamSession(const std::string& masv);
     bool appendExamHistory(const ExamSession& session, float diem);

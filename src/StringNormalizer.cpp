@@ -50,7 +50,7 @@ std::string StringNormalizer::normalizeHumanText(const std::string& input) {
         if (c == '\t') c = ' ';
     }
 
-    // 3. Gọi hàm trim gọt sạch 2 đầu
+    // 3. gọt sạch 2 đầu
     s = trim(s);
     if (s.empty()) return "";
 

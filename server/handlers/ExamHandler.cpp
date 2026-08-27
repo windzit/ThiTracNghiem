@@ -261,7 +261,12 @@ void handle_exam_submit(const httplib::Request& req, httplib::Response& res) {
     StorageManager::getInstance().appendExamHistory(session, diem);
     removeExamSession(masv);
 
-    StorageManager::getInstance().rebuildUsedFlags(dsmh, &dsl);
+    // Cập nhật cờ used trực tiếp trên RAM (O(1)) - không cần quét lại toàn bộ file exam_history.txt
+    node->data.used = true;
+    for (size_t i = 0; i < session.questionIds.size(); i++) {
+        dsCHT* q = node->data.dsCauHoi.find(session.questionIds[i]);
+        if (q) q->cauhoi.used = true;
+    }
 
     json_response(res, {{"soDung",soDung},{"total",total},
         {"diem",diem},{"saved",saved}});
